@@ -1,41 +1,35 @@
 package info.whereismyfood.libs.database
 
-import akka.actor.Status.{Failure, Success}
+import info.whereismyfood.aux.ActorSystemContainer
 import redis.protocol.MultiBulk
-import redis.{RedisClient => RedisClientLib}
+import redis.{ByteStringDeserializer, ByteStringSerializer, RedisClient => RedisClientLib}
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 /**
   * Created by zakgoichman on 10/30/16.
   */
-class RedisClient private extends DatabaseImplementation {
-  val redis = RedisClientLib()
+class RedisClient private {
+  implicit val system = ActorSystemContainer.getSystem
+  implicit val materializer = ActorSystemContainer.getMaterializer
+  implicit val executionContext = system.dispatcher
 
-  val futurePong = redis.ping()
-  println("Ping sent!")
-  futurePong.map(pong => {
-    println(s"Redis replied with a $pong")
-  })
-  Await.result(futurePong, 5 seconds)
+  private val redis = RedisClientLib("104.199.56.237", 6379, Some("XNZEoa4h"))
 
-  def save[T](items: Seq[KeyValueStorable[T]], withTransaction: Boolean): Future[MultiBulk] = {
+  def save[T <: KVStorable](items: Seq[T])(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
     val keys = items.map(_.key)
     val redisTransaction = redis.transaction() // new TransactionBuilder
     redisTransaction.watch(keys:_*) // watch for changes to key
     items.foreach { i =>
-      redisTransaction.set(i.key, i.value)
+      redisTransaction.set[T](i.key, i, Some((30 days) toSeconds))
     }
     redisTransaction.exec()
   }
 
-  def retrieve[T](keys: String*): Seq[T] = {
-    redis.mget(keys).map[T]{
-      v => 
-    }
+  def retrieve[T <: KVStorable](keys: String*)(implicit bsd: ByteStringDeserializer[T]) : Future[Seq[T]] = {
+      redis.mget[T](keys:_*).flatMap(x =>Future(x.flatten))
   }
 }
-
 
 object RedisClient{
   val instance = new RedisClient

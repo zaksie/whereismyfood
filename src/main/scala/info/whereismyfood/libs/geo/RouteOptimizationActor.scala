@@ -1,4 +1,4 @@
-package info.whereismyfood.libs.operations
+package info.whereismyfood.libs.geo
 
 import akka.actor.{Actor, Props}
 import com.google.gson.GsonBuilder
@@ -13,7 +13,7 @@ import info.whereismyfood.aux.MyConfig
 
 object RouteOptimizationActor {
   val geoApiContext = new GeoApiContext().setApiKey(MyConfig.get("google.apikey"));
-  def props = Props(new RouteOptimizationActor)
+  def props = Props[RouteOptimizationActor]
 }
 
 class RouteOptimizationActor extends Actor {

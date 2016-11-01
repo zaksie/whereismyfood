@@ -1,30 +1,26 @@
 package info.whereismyfood.libs.database
 
-import com.google.cloud.datastore._
+import com.google.appengine.api.datastore.{DatastoreService, DatastoreServiceFactory}
 import org.slf4j.LoggerFactory
 
 /**
   * Created by zakgoichman on 10/23/16.
   */
-class DatastoreEngine private extends DatabaseImplementation {
-  val log = LoggerFactory.getLogger(this.getClass)
-  val datastore: Datastore = DatastoreOptions.defaultInstance.service
-  private val keyFactory = datastore.newKeyFactory.kind("Task")
+class DatastoreClient private {
+  private val log = LoggerFactory.getLogger(this.getClass)
+  private val helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig())
+  helper.setUp()
 
-  def executeQuery(gql: String): QueryResults[Entity] = {
-    val query = Query.gqlQueryBuilder(Query.ResultType.ENTITY, gql).allowLiteral(true).build()
-    try{
-      datastore.run(query, ReadOption.eventualConsistency)
-    }catch{
-      case e: Exception => {
-        log.error("Encountered error", e)
-        throw e
-      }
-    }
+  val client : DatastoreService = DatastoreServiceFactory.getDatastoreService()
+
+  def get[T <: DatastoreStorable[T]](t: T, params: String) : Any = t.getFromDatastore(params)
+
+  def save[T <: DatastoreStorable[T]](ts: T*): Unit = {
+    ts.foreach(_.saveToDatastore)
   }
 }
 
-object DatastoreEngine{
-  val instance = new DatastoreEngine
+object DatastoreClient{
+  val instance = new DatastoreClient
 }
 

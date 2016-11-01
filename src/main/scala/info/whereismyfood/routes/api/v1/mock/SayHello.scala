@@ -1,4 +1,4 @@
-package routes.api.v1.mock
+package info.whereismyfood.routes.api.v1.mock
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._

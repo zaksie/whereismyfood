@@ -1,4 +1,4 @@
-package info.whereismyfood
+package info.whereismyfood.aux
 
 import com.typesafe.config.ConfigFactory
 
@@ -7,4 +7,11 @@ import com.typesafe.config.ConfigFactory
   */
 object MyConfig {
   val inst = ConfigFactory.load()
+  def get(key: String) = {
+    inst.getString(key)
+  }
+
+  def getInt(key: String) = {
+    inst.getInt(key)
+  }
 }

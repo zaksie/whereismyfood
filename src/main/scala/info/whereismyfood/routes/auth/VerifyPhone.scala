@@ -1,7 +1,7 @@
-package info.whereismyfood.routes.api.v1.http
+package info.whereismyfood.routes.auth
 
-import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server.Directives._
 import info.whereismyfood.libs.auth.Account
 import info.whereismyfood.modules.VerifyPhoneModule
 import org.slf4j.LoggerFactory
@@ -15,7 +15,7 @@ object VerifyPhone {
 
   val log = LoggerFactory.getLogger(this.getClass)
 
-  def routes = path("request-verify-phone") {
+  val routes = path("request-verify-phone") {
       post {
         entity(as[Account]) { account =>
           VerifyPhoneModule.requestVerificationCode(account)

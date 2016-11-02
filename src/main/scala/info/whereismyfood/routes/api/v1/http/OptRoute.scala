@@ -20,7 +20,7 @@ object OptRoute {
   val system = ActorSystemContainer.getSystem
   val actorRef = Await.result(system.actorSelection("/user/modules/optroute").resolveOne(), resolveTimeout.duration)
   val gson = new Gson
-  def routes = path("optroute") {
+  val routes = path("optroute") {
       get {
         parameters('start, 'destinations).as(DistanceMatrixRequestParams) { dmrp =>
           val result = Await.result(actorRef ? dmrp, resolveTimeout.duration)

@@ -6,7 +6,7 @@ import spray.json.DefaultJsonProtocol
 /**
   * Created by zakgoichman on 11/2/16.
   */
-case class Account(uuid: String, to: String, code: String)
+case class Account(uuid: String, to: String, code: String = "")
 object AccountJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
-  implicit val unverifiedAccountFormat = jsonFormat3(Account)
+  implicit val unverifiedAccountFormat3 = jsonFormat3(Account)
 }

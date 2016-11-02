@@ -22,7 +22,7 @@ object Tracking {
         Nil
     }
 
-  def routes = {
+  val routes = {
     path("report-position") {
       handleWebSocketMessages(greeter)
     }

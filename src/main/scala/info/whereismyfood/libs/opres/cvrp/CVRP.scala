@@ -4,8 +4,7 @@ package info.whereismyfood.libs.opres.cvrp
   * Created by zakgoichman on 10/24/16.
   */
 
-import com.google.maps.model.LatLng
-import info.whereismyfood.libs.math.{DistanceMatrix, GeoProjections}
+import info.whereismyfood.libs.math.{DistanceMatrix, GeoProjections, LatLng}
 
 object Pair {
   def of[K, V](element0: K, element1: V): Pair[K, V] = Pair[K, V](element0, element1)

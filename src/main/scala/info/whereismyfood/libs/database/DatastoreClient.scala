@@ -1,6 +1,7 @@
 package info.whereismyfood.libs.database
 
-import com.google.appengine.api.datastore.{DatastoreService, DatastoreServiceFactory}
+
+import com.google.cloud.datastore.DatastoreOptions
 import org.slf4j.LoggerFactory
 
 /**
@@ -8,15 +9,11 @@ import org.slf4j.LoggerFactory
   */
 class DatastoreClient private {
   private val log = LoggerFactory.getLogger(this.getClass)
-  private val helper = new LocalServiceTestHelper(new LocalDatastoreServiceTestConfig())
-  helper.setUp()
 
-  val client : DatastoreService = DatastoreServiceFactory.getDatastoreService()
+  val client = DatastoreOptions.getDefaultInstance.getService
 
-  def get[T <: DatastoreStorable[T]](t: T, params: String) : Any = t.getFromDatastore(params)
-
-  def save[T <: DatastoreStorable[T]](ts: T*): Unit = {
-    ts.foreach(_.saveToDatastore)
+  def save[T <: DatastoreStorable](ts: T*): Unit = {
+    client.put(ts.map(_.prepareDatastoreEntity):_*)
   }
 }
 

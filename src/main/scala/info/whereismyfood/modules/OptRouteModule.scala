@@ -3,7 +3,6 @@ package info.whereismyfood.modules
 import akka.actor.{Actor, Props}
 import akka.util.Timeout
 import com.google.gson.GsonBuilder
-import com.google.maps.model.LatLng
 import info.whereismyfood.aux.ActorSystemContainer
 
 import scala.concurrent.Await
@@ -13,13 +12,13 @@ import akka.pattern.ask
 import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution
 import info.whereismyfood.libs.database.Databases
 import info.whereismyfood.libs.geo.DistanceMatrixRequestParams
-import info.whereismyfood.libs.math.{Distance, DistanceMatrix, Location}
+import info.whereismyfood.libs.math.{Distance, DistanceMatrix, LatLng, Location}
 import info.whereismyfood.libs.opres.cvrp._
 
 /**
   * Created by zakgoichman on 10/24/16.
   */
-object OptRouteActor {
+object OptRouteModule {
   def props = Props[OptRouteActor]
 }
 
@@ -46,26 +45,28 @@ class OptRouteActor extends Actor {
   }
 
   def getDistanceMatrix(locations: Seq[LatLng]): Option[DistanceMatrix] = {
+    def getMissing(locations: Seq[LatLng], distanceMatrix: DistanceMatrix) : Seq[LatLng] = {
+      locations.filter(p=>{
+        !distanceMatrix.getAll.exists(d=>d.from.latLng == p || d.to.latLng == p)
+      })
+    }
+
     def getFromMemory(locations: Seq[LatLng]) : (Seq[LatLng], DistanceMatrix) = {
       val distanceMatrix = new DistanceMatrix()
-      val distances = Await.result(Databases.inmemory.retrieve[Distance](locations.map(_.toString):_*), 30 seconds)
-      val missing = locations.filter(y=>{
-        !distances.exists(d=>d.from.latLng.toString == y.toString || d.to.latLng.toString == y.toString)
-      })
-      (missing, distanceMatrix.add(distances:_*))
+      val hashes = locations.flatMap{ from =>
+        locations.flatMap{ to=>
+          if(from != to) Some(Distance.getHash(from, to).toString)
+          else None
+        }
+      }
+      val distances = Await.result(Databases.inmemory.retrieve[Distance](hashes:_*), 30 seconds)
+      distanceMatrix.add(distances:_*)
+      (getMissing(locations, distanceMatrix), distanceMatrix)
     }
 
     def getFromDatabase(locations: Seq[LatLng]) : (Seq[LatLng], DistanceMatrix) = {
-      val distanceMatrix = new DistanceMatrix()
-      /*Databases.persistent.executeQuery("SELECT * FROM Distances").forEachRemaining(e => {
-        val entity = e.asInstanceOf[Entity]
-        val distance = Distance(Location(entity.getLatLng("from")
-      })
-      while(result.hasNext){
-        result.next()
-      }
-      */
-      (locations, distanceMatrix)
+      val distanceMatrix = DistanceMatrix.getFromDB(locations).getOrElse(DistanceMatrix())
+      (getMissing(locations, distanceMatrix), distanceMatrix)
     }
 
     def getFromGoogleApi(locations: Seq[LatLng]) : Option[DistanceMatrix] = {
@@ -89,7 +90,7 @@ class OptRouteActor extends Actor {
 
           Some(distanceMatrix.merge(dm2))
         }
-        case (missing2: Seq[LatLng], dm2: DistanceMatrix) => getFromGoogleApi(missing2) match {
+        case (_: Seq[LatLng], dm2: DistanceMatrix) => getFromGoogleApi(locations) match {
           case Some(dm3) => {
             updateMemory(dm3.getAll ++ dm2.getAll)
             updateDatabase(dm3.getAll)
@@ -106,7 +107,7 @@ class OptRouteActor extends Actor {
     coordInputPattern.findAllIn(s).matchData.map[LatLng] {
       m =>
         val s = m.group(1).split(",")
-        new LatLng(s(0).toDouble, s(1).toDouble)
+        LatLng(s(0).toDouble, s(1).toDouble)
     }.toSeq
   }
 

@@ -1,6 +1,5 @@
 package info.whereismyfood.libs.math
 
-import com.google.maps.model.LatLng
 /**
   * Created by zakgoichman on 10/25/16.
   */

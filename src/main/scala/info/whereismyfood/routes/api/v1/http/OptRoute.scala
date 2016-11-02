@@ -1,9 +1,9 @@
-package info.whereismyfood.routes.api.v1
+package info.whereismyfood.routes.api.v1.http
 
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
+import com.google.gson.Gson
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.libs.geo.DistanceMatrixRequestParams
 import org.slf4j.LoggerFactory
@@ -19,15 +19,13 @@ object OptRoute {
   val log = LoggerFactory.getLogger(this.getClass)
   val system = ActorSystemContainer.getSystem
   val actorRef = Await.result(system.actorSelection("/user/modules/optroute").resolveOne(), resolveTimeout.duration)
-
-  def routes = {
-    path("optroute") {
+  val gson = new Gson
+  def routes = path("optroute") {
       get {
         parameters('start, 'destinations).as(DistanceMatrixRequestParams) { dmrp =>
           val result = Await.result(actorRef ? dmrp, resolveTimeout.duration)
-          complete(result.toString)
+          complete(gson.toJson(result))
         }
       }
     }
-  }
 }

@@ -1,7 +1,8 @@
 package info.whereismyfood.routes.api.v1
 
 import akka.http.scaladsl.server.Directives._
-import info.whereismyfood.routes.api.v1.mock.SayHello
+import info.whereismyfood.routes.api.v1.http.{HTTP}
+import info.whereismyfood.routes.api.v1.ws.{WS}
 import info.whereismyfood.routes.auth
 
 /**
@@ -11,7 +12,7 @@ object Index {
   def routes =
     pathPrefix("api" / "v1") {
       auth.JwtApi.checkJWT ~
-      SayHello.routes ~
-      OptRoute.routes
+        WS.routes ~
+        HTTP.routes
     }
 }

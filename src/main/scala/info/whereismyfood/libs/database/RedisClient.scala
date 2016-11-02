@@ -1,6 +1,6 @@
 package info.whereismyfood.libs.database
 
-import info.whereismyfood.aux.ActorSystemContainer
+import info.whereismyfood.aux.{ActorSystemContainer, MyConfig}
 import redis.protocol.MultiBulk
 import redis.{ByteStringDeserializer, ByteStringSerializer, RedisClient => RedisClientLib}
 
@@ -14,7 +14,7 @@ class RedisClient private {
   implicit val materializer = ActorSystemContainer.getMaterializer
   implicit val executionContext = system.dispatcher
 
-  private val redis = RedisClientLib("104.199.56.237", 6379, Some("XNZEoa4h"))
+  private val redis = RedisClientLib(MyConfig.get("redis.host"), MyConfig.getInt("redis.port"), Some(MyConfig.get("redis.pwd")))
 
   def save[T <: KVStorable](items: Seq[T])(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
     val keys = items.map(_.key)
@@ -27,7 +27,9 @@ class RedisClient private {
   }
 
   def retrieve[T <: KVStorable](keys: String*)(implicit bsd: ByteStringDeserializer[T]) : Future[Seq[T]] = {
-      redis.mget[T](keys:_*).flatMap(x =>Future(x.flatten))
+      redis.mget[T](keys:_*).flatMap { x =>
+        Future(x.flatten)
+      }
   }
 }
 

@@ -9,10 +9,11 @@ import info.whereismyfood.routes.auth
   * Created by zakgoichman on 10/20/16.
   */
 object ApiV1Router {
-  val routes =
+  def routes =
     pathPrefix("api" / "v1") {
-      auth.JwtApi.checkJWT ~
+      auth.JwtApi.checkJwt { implicit account =>
         WS.routes ~
-        HTTP.routes
+          HTTP.routes
+      }
     }
 }

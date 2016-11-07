@@ -11,7 +11,7 @@ import com.twilio.sdk.`type`.PhoneNumber
 object TwilioClient {
   private val ACCOUNT_SID = MyConfig.get("twilio.sid")
   private val AUTH_TOKEN = MyConfig.get("twilio.auth")
-  private val FROM = new PhoneNumber(MyConfig.get("twilio.from"))
+  private val FROM = new PhoneNumber(MyConfig.get("twilio.phone"))
 
   Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
 

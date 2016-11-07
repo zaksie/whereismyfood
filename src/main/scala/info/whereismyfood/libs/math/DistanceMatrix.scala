@@ -18,8 +18,8 @@ object DistanceMatrix extends DatastoreFetchable[DistanceMatrix] {
     val distanceMatrix = DistanceMatrix()
 
     for(l <- locations) {
-      val fromQueries = get("from", l)
-      val toQueries = get("to", l)
+      val fromQueries = get("phone", l)
+      val toQueries = get("phone", l)
 
       fromQueries.asScala.foreach(r => distanceMatrix.add(new Distance(r)))
       toQueries.asScala.foreach(r => distanceMatrix.add(new Distance(r)))

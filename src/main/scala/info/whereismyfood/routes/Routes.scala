@@ -11,11 +11,11 @@ import info.whereismyfood.routes.auth.AuthRouter
   */
 object Routes {
   val settings = CorsSettings.defaultSettings.copy(allowGenericHttpRequests = true)
-  val routes = handleRejections(CorsDirectives.corsRejectionHandler) {
+  def routes = handleRejections(CorsDirectives.corsRejectionHandler) {
     cors(settings) {
       AuthRouter.routes ~
         pathEndOrSingleSlash {
-          complete("Welcome to whereismyfood.info API")
+          complete("Welcome phone whereismyfood.info API")
         } ~
         ApiV1Router.routes
     }

@@ -5,7 +5,8 @@ import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.Directives._
 import info.whereismyfood.aux.MyConfig
 import io.igl.jwt._
-import play.api.libs.json.{JsString, JsValue}
+import org.slf4j.LoggerFactory
+import play.api.libs.json.{JsNumber, JsString, JsValue}
 
 import scala.util.Try
 
@@ -25,46 +26,51 @@ object Role extends ClaimField {
 }
 
 trait AuthenticationHandler {
+  val log = LoggerFactory.getLogger("AuthenticationHandler")
+
   val ISS_NAME = "whereismyfood"
   val ALGO = Algorithm.HS512
   val ENCRYPTION = Seq(Alg(ALGO), Typ("JWT"))
   val SECRET = MyConfig.get("jwt.secret")
 
-  def isVerifyWithRole(req: HttpRequest, role: String): Boolean = {
-    val result = getAuthToken(req)
-
-    val res: Try[Jwt] = DecodedJwt.validateEncodedJwt(
-      result, // An encoded jwt as a string
-      SECRET, // The apikey to validate the signature against
+  def decodeJwt(token: String): Try[Jwt] = {
+    DecodedJwt.validateEncodedJwt(
+      token, // An encoded jwt as a string
+      SECRET, // The apikey phone validate the signature against
       ALGO, // The algorithm we require
       Set(Typ), // The set of headers we require (excluding alg)
-      Set(Iss, Aud),
-      iss = Some(Iss(ISS_NAME)), // The iss claim to require (similar optional arguments exist for all registered claims)
-      aud = Some(Aud(role))
+      Set(Iss, Uuid, Dbid, Aud)
     )
-    res.isSuccess
   }
 
   def verify(token: String): Boolean = {
-    if(token == "TEST") return true
     val res: Try[Jwt] = DecodedJwt.validateEncodedJwt(
       token, // An encoded jwt as a string
-      SECRET, // The apikey to validate the signature against
+      SECRET, // The apikey phone validate the signature against
       ALGO, // The algorithm we require
       Set(Typ), // The set of headers we require (excluding alg)
       Set(Iss)
-      //iss = Some(Iss(ISS_NAME)) // The iss claim to require (similar optional arguments exist for all registered claims)
+      //iss = Some(Iss(ISS_NAME)) // The iss claim phone require (similar optional arguments exist for all registered claims)
     )
     res.isSuccess
   }
 
-  def createTokenWithRole(apiKey: String, role: String): String = {
-    val jwt = new DecodedJwt(ENCRYPTION, Seq(Iss(apiKey), Aud(role)))
+  def createTokenWithRole(uuid: String, phone: String, role: String): String = {
+    val jwt = new DecodedJwt(ENCRYPTION, Seq(Iss(phone), Iss(uuid), Aud(role)))
     jwt.encodedAndSigned(SECRET)
   }
 
   def createToken(apiKey: String): String = {
     val jwt = new DecodedJwt(ENCRYPTION, Seq(Iss(apiKey)))
+    jwt.encodedAndSigned(SECRET)
+  }
+
+  def createToken(account: DatabaseAccount): String = {
+    val jwt = new DecodedJwt(ENCRYPTION,
+      Seq(Iss(account.phone),
+        Dbid(account.datastoreId.getOrElse(-1)),
+        Uuid(account.uuid),
+        Aud(account.role.toString)))
     jwt.encodedAndSigned(SECRET)
   }
 
@@ -79,12 +85,55 @@ trait AuthenticationHandler {
     result
   }
 
-  def checkJWT: Route =
-    parameter('token ? "") { token =>
-      if (!verify(token)) {
-        complete(HttpResponse(StatusCodes.Unauthorized))
+  def checkJwt: Directive1[Creds] = {
+    parameter('token ? "").flatMap{ token =>
+      //TODO: Remove!!
+      if (token == "TEST")
+        provide(Creds(phone="5333", role=1))
+      else {
+        val parsed = decodeJwt(token)
+        if (parsed.isFailure) {
+          complete(HttpResponse(StatusCodes.Unauthorized))
+        }
+        else {
+          try {
+            val phone = parsed.get.getClaim[Iss].get.value
+            val dbid = parsed.get.getClaim[Dbid].get.value
+            val uuid = parsed.get.getClaim[Uuid].get.value
+            val role = parsed.get.getClaim[Aud].get.value match {
+              case Left(x) => Roles(x)
+              case Right(x) => Roles(x)
+            }
+            provide(Creds(dbid = dbid, phone=phone, role=role.get, uuid=uuid))
+          } catch {
+            case x: Exception =>
+              log.error("Error while parsing decoded jwt", x)
+              complete(HttpResponse(StatusCodes.Unauthorized))
+          }
+        }
       }
-      else reject
     }
+  }
+}
 
+case class Uuid(value: String) extends ClaimValue {
+  override val field: ClaimField = Uuid
+  override val jsValue: JsValue = JsString(value)
+}
+
+object Uuid extends (String => Uuid) with ClaimField {
+  override def attemptApply(value: JsValue): Option[ClaimValue] =
+  value.asOpt[String].map(apply)
+  override val name: String = "uuid"
+}
+
+case class Dbid(value: Long) extends ClaimValue {
+  override val field: ClaimField = Dbid
+  override val jsValue: JsValue = JsNumber(value)
+}
+
+object Dbid extends (Long => Dbid) with ClaimField {
+  override def attemptApply(value: JsValue): Option[ClaimValue] =
+    value.asOpt[Long].map(apply)
+  override val name: String = "dbid"
 }

@@ -2,7 +2,7 @@ package info.whereismyfood.routes.auth
 
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import info.whereismyfood.libs.auth.Account
+import info.whereismyfood.libs.auth.Creds
 import info.whereismyfood.modules.VerifyPhoneModule
 import org.slf4j.LoggerFactory
 
@@ -11,27 +11,30 @@ import org.slf4j.LoggerFactory
   */
 object VerifyPhone {
 
-  import info.whereismyfood.libs.auth.AccountJsonSupport._
+  import info.whereismyfood.libs.auth.CredsJsonSupport._
 
   val log = LoggerFactory.getLogger(this.getClass)
 
-  val routes = path("request-verify-phone") {
-      post {
-        entity(as[Account]) { account =>
-          VerifyPhoneModule.requestVerificationCode(account)
-          complete(HttpResponse(StatusCodes.OK))
-        }
+  def routes =
+    path("request-verify-phone") {
+    post {
+      entity(as[Creds]) { creds =>
+        val code = if (VerifyPhoneModule.requestVerificationCode(creds)) StatusCodes.OK else StatusCodes.Forbidden
+        complete(HttpResponse(code))
       }
-    } ~
-      path("verify-phone") {
-        post {
-          entity(as[Account]) { account =>
-            val ok = VerifyPhoneModule.verify(account)
-            complete(if (ok) HttpResponse(StatusCodes.OK) else HttpResponse(StatusCodes.Unauthorized))
+    }
+  } ~
+    path("verify-phone") {
+      post {
+        entity(as[Creds]) { creds =>
+          val result = VerifyPhoneModule.verify(creds)
+          complete {
+            if (result.ok) HttpResponse(StatusCodes.OK, entity = result.toJson)
+            else HttpResponse(StatusCodes.Unauthorized, entity = result.toJson)
           }
         }
       }
+    }
 }
-
 
 

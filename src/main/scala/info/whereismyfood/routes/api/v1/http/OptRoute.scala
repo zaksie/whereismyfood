@@ -5,6 +5,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.google.gson.Gson
 import info.whereismyfood.aux.ActorSystemContainer
+import info.whereismyfood.libs.auth.Creds
 import info.whereismyfood.libs.geo.DistanceMatrixRequestParams
 import org.slf4j.LoggerFactory
 
@@ -20,7 +21,8 @@ object OptRoute {
   val system = ActorSystemContainer.getSystem
   val actorRef = Await.result(system.actorSelection("/user/modules/optroute").resolveOne(), resolveTimeout.duration)
   val gson = new Gson
-  val routes = path("optroute") {
+  def routes(implicit creds: Creds) =
+    path("optroute") {
       get {
         parameters('start, 'destinations).as(DistanceMatrixRequestParams) { dmrp =>
           val result = Await.result(actorRef ? dmrp, resolveTimeout.duration)

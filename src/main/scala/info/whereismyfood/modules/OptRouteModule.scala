@@ -75,7 +75,7 @@ class OptRouteActor extends Actor {
     }
 
     def updateMemory(distances: Seq[Distance]): Unit = {
-      Databases.inmemory.save(distances)
+      Databases.inmemory.saveSeq(distances)
     }
 
     def updateDatabase(distances: Seq[Distance]): Unit = {

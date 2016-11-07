@@ -1,55 +1,76 @@
 package info.whereismyfood.libs.auth
 
-import com.google.cloud.datastore.{Entity, Key, ReadOption}
+import com.google.cloud.datastore.StructuredQuery.PropertyFilter
+import com.google.cloud.datastore._
 import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable}
+import collection.JavaConverters._
 
 
 
-object UnverifiedAccountCompanion extends DatastoreFetchable[UnverifiedAccount] {
+object UnverifiedAccount extends DatastoreFetchable[UnverifiedAccount] {
   val kind = "UnverifiedAccount"
   val propkey_uuid = "uuid"
   val propkey_code = "code"
-  val propkey_phonenumber = "phonenumber"
-  def save(uuid: String, to: String, code: String)={
-    val ua = UnverifiedAccount(uuid, to, code)
-    ua.saveToDatastore
-  }
-  def get(uuid: String): Option[UnverifiedAccount] = {
-    getFromDatastore(uuid)
+  val propkey_phone = "phone"
+  val propkey_role = "role"
+
+  def save(uuid: String, phone: String, code: String): Boolean = {
+    val una = UnverifiedAccount(uuid, phone, code)
+    /*DatabaseAccount.getFromDatastore(una.uuid, una.phone) match {
+      case Some(_) => false
+      case None => una.saveToDatastore; true
+    }*/
+    una.saveToDatastore
+    true
   }
 
-  override def getFromDatastore(param: Any): Option[UnverifiedAccount] = {
-    val uuid: String = param.asInstanceOf[String]
-    val key: Key = datastore.newKeyFactory().setKind(kind).newKey(uuid)
-    val result = datastore.get(key, ReadOption.eventualConsistency())
-    Some(UnverifiedAccount(
-      result.getString(propkey_uuid),
-      result.getString(propkey_phonenumber),
-      result.getString(propkey_code)
-    ))
+  def verify(creds: Creds): Option[DatabaseAccount] = {
+    val una = new UnverifiedAccount(creds)
+    getFromDatastore(una) match {
+      case Some(found) => {
+        if(found.matches(una)) {
+          DatabaseAccount.add(found)
+        }
+        else None
+      }
+      case None => None
+    }
+  }
+
+  override def getFromDatastore(_account: Any): Option[UnverifiedAccount] = {
+    val account = _account.asInstanceOf[UnverifiedAccount]
+    val q: Query[Entity] = Query.newEntityQueryBuilder()
+      .setKind(kind)
+      .setFilter(PropertyFilter.eq(propkey_phone, account.phone))
+      .build()
+    val result: QueryResults[Entity] = datastore.run(q, ReadOption.eventualConsistency())
+
+    if(!result.hasNext) None
+    else {
+      val r = result.next
+      Some(UnverifiedAccount(
+        r.getString(propkey_uuid),
+        r.getString(propkey_phone),
+        r.getString(propkey_code),
+        r.getLong(propkey_role)
+      ))
+    }
   }
 }
 
-final case class UnverifiedAccount(uuid: String, to: String, code: String) extends DatastoreStorable{
-  import UnverifiedAccountCompanion._
+final case class UnverifiedAccount(uuid: String, phone: String, code: String, role: Long = Roles.client) extends DatastoreStorable{
+  import UnverifiedAccount._
 
-  def this(a: Account) = this(a.uuid, a.to, a.code)
-
-  override def saveToDatastore: Unit ={
-    datastore.put(prepareDatastoreEntity)
-  }
-
-  override def prepareDatastoreEntity: Entity = {
-    val key = datastore.newKeyFactory().setKind(kind).newKey(uuid)
-    Entity.newBuilder(key)
+  def this(a: Creds) = this(a.uuid, a.phone, a.code)
+  def matches(a: UnverifiedAccount): Boolean =
+    code == a.code && phone == a.phone && uuid == a.uuid && role == a.role
+  override def prepareDatastoreEntity: Option[FullEntity[_]] = {
+    val key = datastore.newKeyFactory().setKind(kind).newKey(phone)
+    Option(Entity.newBuilder(key)
       .set(propkey_uuid, uuid)
-      .set(propkey_phonenumber, to)
+      .set(propkey_phone, phone)
       .set(propkey_code, code)
-      .build()
-  }
-
-  def isValid: Boolean = {
-    val result = get(uuid)
-    result.isDefined && this == result.get
+      .set(propkey_role, role)
+      .build())
   }
 }

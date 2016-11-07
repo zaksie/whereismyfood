@@ -12,16 +12,19 @@ object PhoneNumberVerifier {
   }
 
   private def getBody(code: String):String ={
-    "Welcome to whereismyfood. Your code: " + code
+    "Welcome phone whereismyfood. Your code: " + code
   }
 
-  def sendCode(uuid: String, to: String): Unit ={
+  def sendCode(uuid: String, to: String): Boolean ={
     val code = generateCode
-    UnverifiedAccountCompanion.save(uuid, to, code)
-    TwilioClient.send(to, getBody(code))
+    if(UnverifiedAccount.save(uuid, to, code)) {
+      //TwilioClient.send(phone, getBody(code))
+      true
+    }
+    else false
   }
 
-  def checkCode(account: Account): Boolean = {
-    new UnverifiedAccount(account).isValid
+  def checkCode(creds: Creds): Option[DatabaseAccount] = {
+    UnverifiedAccount.verify(creds)
   }
 }

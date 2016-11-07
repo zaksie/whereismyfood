@@ -16,16 +16,15 @@ object LoginEntity extends DatastoreFetchable[LoginEntity] {
     getFromDatastore(param)
   }
 
-  override def getFromDatastore(param: Any): Option[LoginEntity] = {
-    val apikey = param.asInstanceOf[String]
+  override def getFromDatastore(apikey: String): Option[LoginEntity] = {
     val q: Query[Entity] = Query.newEntityQueryBuilder()
       .setKind(kind)
       .setFilter(PropertyFilter.eq("apikey", apikey))
       .build()
     val result :QueryResults[Entity] = datastore.run(q, ReadOption.eventualConsistency())
     val single = result.next()
-    Some(LoginEntity(single.getString(propkey_name), single.getString(propkey_role)))
+    Some(LoginEntity(single.getString(propkey_name), single.getLong(propkey_role)))
   }
 }
 
-case class LoginEntity(name: String, role: String)
+case class LoginEntity(name: String, role: Long)

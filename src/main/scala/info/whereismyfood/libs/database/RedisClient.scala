@@ -16,12 +16,15 @@ class RedisClient private {
 
   private val redis = RedisClientLib(MyConfig.get("redis.host"), MyConfig.getInt("redis.port"), Some(MyConfig.get("redis.pwd")))
 
-  def save[T <: KVStorable](items: Seq[T])(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
-    val keys = items.map(_.key)
+  def saveSeq[T <: KVStorable](items: Seq[T])(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
+    save[T](items.map(t=> (t.key, t)):_*)
+  }
+
+  def save[T](items: (String, T)*)(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
     val redisTransaction = redis.transaction() // new TransactionBuilder
-    redisTransaction.watch(keys:_*) // watch for changes to key
+    redisTransaction.watch(items.map(_._1):_*) // watch for changes to key
     items.foreach { i =>
-      redisTransaction.set[T](i.key, i, Some((30 days) toSeconds))
+      redisTransaction.set[T](i._1, i._2, Some(60*60*3L))
     }
     redisTransaction.exec()
   }

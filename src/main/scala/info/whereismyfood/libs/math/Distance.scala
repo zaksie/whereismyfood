@@ -2,7 +2,7 @@ package info.whereismyfood.libs.math
 
 import boopickle.Default._
 import akka.util.ByteString
-import com.google.cloud.datastore.{Entity, Key, ReadOption, LatLng => DSLatLng}
+import com.google.cloud.datastore.{Entity, FullEntity, Key, ReadOption, LatLng => DSLatLng}
 import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable, KVStorable}
 import redis.ByteStringFormatter
 import com.google.maps.model.{LatLng => GoogleLatLng}
@@ -17,7 +17,9 @@ object LatLng {
 
 case class LatLng(lat: Double, lng: Double){
   def this(latLng: GoogleLatLng) = this(latLng.lat, latLng.lng)
+  def this(latLng: DSLatLng) = this(latLng.getLatitude, latLng.getLongitude)
   def toGoogleLatLng = new GoogleLatLng(lat, lng)
+  def toDatastoreLatLng = DSLatLng.of(lat, lng)
 
   override def toString: String = lat.toString + "," + lng.toString
 }
@@ -37,8 +39,8 @@ object Distance extends DatastoreFetchable[Distance] {
   val zero = Distance(null, null, 0, 0)
   val propkey_distanceInMeters = "distanceInMeters"
   val propkey_timeInSeconds = "timeInSeconds"
-  val propkey_from = "from"
-  val propkey_to = "to"
+  val propkey_from = "phone"
+  val propkey_to = "phone"
   val propkey_fromName = "fromName"
   val propkey_toName = "toName"
   val kind = "Distance"
@@ -62,8 +64,7 @@ object Distance extends DatastoreFetchable[Distance] {
   }
   def getFromDB(param: Any): Option[Distance] = getFromDatastore(param)
 
-  override def getFromDatastore(param: Any): Option[Distance] = {
-    val hashcode = param.asInstanceOf[String]
+  override def getFromDatastore(hashcode: String): Option[Distance] = {
     val distanceKey: Key = datastore.newKeyFactory().setKind(kind).newKey(hashcode)
     val result = datastore.get(distanceKey, ReadOption.eventualConsistency())
     val from = Location(result.getString(propkey_fromName), result.getLatLng(propkey_from))
@@ -90,20 +91,16 @@ case class Distance(from: Location, to: Location, distanceInMeters: Long, timeIn
 
   override def key: String = getOwnHash
 
-  override def saveToDatastore: Unit = {
-    datastore.put(prepareDatastoreEntity)
-  }
-
-  override def prepareDatastoreEntity: Entity = {
+  override def prepareDatastoreEntity: Option[FullEntity[_]] = {
     val distanceKey = datastore.newKeyFactory().setKind(kind).newKey(key)
-    Entity.newBuilder(distanceKey)
+    Option(Entity.newBuilder(distanceKey)
       .set(propkey_distanceInMeters, distanceInMeters)
       .set(propkey_timeInSeconds, timeInSeconds)
       .set(propkey_from, from.toGeoPt)
       .set(propkey_to, to.toGeoPt)
       .set(propkey_fromName, from.name)
       .set(propkey_toName, to.name)
-      .build()
+      .build())
   }
 }
 

@@ -9,7 +9,8 @@ import info.whereismyfood.modules.ModuleActors
   * Created by zakgoichman on 10/23/16.
   */
 class ActorSystemContainer private() {
-  private implicit val sys = ActorSystem.create("whereismyfood")
+
+  private implicit val sys = ActorSystem("YummletSystem", MyConfig.config)
   private val materializer = ActorMaterializer()
 
   sys.actorOf(Props[LibActors], "libs")

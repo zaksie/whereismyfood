@@ -2,12 +2,12 @@ package info.whereismyfood.libs.user
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.CurrentTopics
 import info.whereismyfood.aux.MyConfig.Topics
 import info.whereismyfood.libs.auth.Creds
 import info.whereismyfood.libs.geo.BrowserGeolocation
 import info.whereismyfood.libs.order.Order
 import info.whereismyfood.libs.user.UserActorUtils._
+
 import scala.collection.mutable
 /**
   * Created by zakgoichman on 11/7/16.

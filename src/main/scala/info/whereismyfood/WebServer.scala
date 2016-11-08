@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import akka.http.scaladsl.Http
-import info.whereismyfood.aux.{ActorSystemContainer}
+import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.routes.Routes
 import org.slf4j.LoggerFactory
 

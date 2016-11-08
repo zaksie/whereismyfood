@@ -13,7 +13,7 @@ import info.whereismyfood.libs.math.{Distance, LatLng, Location, DistanceMatrix 
   */
 
 object DistanceMatrixActor {
-  val geoApiContext = new GeoApiContext().setApiKey(MyConfig.get("google.apikey"));
+  val geoApiContext = new GeoApiContext().setApiKey(MyConfig.get("google.apikey"))
   def props = Props[DistanceMatrixActor]
 }
 case class DistanceMatrixRequestParams(start: String, destinations: String)

@@ -1,11 +1,8 @@
 package info.whereismyfood.libs.geo
 
-import akka.util.ByteString
-import boopickle.Default._
 import com.google.cloud.datastore.{FullEntity, PathElement}
 import info.whereismyfood.libs.auth.{Creds, DatabaseAccount}
 import info.whereismyfood.libs.database.{Databases, DatastoreFetchable, DatastoreStorable, KVStorable}
-import redis.ByteStringFormatter
 import org.json4s.DefaultFormats
 import org.json4s.native.JsonMethods
 
@@ -15,19 +12,20 @@ import scala.util.Try
   * Created by zakgoichman on 11/4/16.
   */
 
-object DatabaseGeolocation extends DatastoreFetchable[DatabaseGeolocation]{
+object DatabaseGeolocation extends DatastoreFetchable[DatabaseGeolocation] {
   val kind = "Geolocation"
   val parent = "Creds"
 }
 
 case class DatabaseGeolocation(browserGeolocation: BrowserGeolocation)(implicit creds: Creds) extends DatastoreStorable with KVStorable {
+
   import DatabaseGeolocation._
 
   override def asDatastoreEntity: Option[FullEntity[_]] = {
     DatabaseAccount.getFromDatastore(creds.phone) match {
-      case Some(records) => {
-        val record = records(0)
-        if(record.datastoreId.isEmpty) return None
+      case Some(records) =>
+        val record = records.head
+        if (record.datastoreId.isEmpty) return None
 
         val ancestor = PathElement.of(DatabaseAccount.kind, record.datastoreId.get)
         val key = datastore.newKeyFactory().setKind(kind).addAncestor(ancestor).newKey()
@@ -38,7 +36,6 @@ case class DatabaseGeolocation(browserGeolocation: BrowserGeolocation)(implicit 
         }
         entity.set("timestamp", browserGeolocation.timestamp)
         Option(entity.build())
-      }
       case _ => None
     }
   }

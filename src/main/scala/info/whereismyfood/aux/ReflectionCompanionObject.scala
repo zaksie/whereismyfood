@@ -8,7 +8,7 @@ trait ReflectionCompanionObject {
   private lazy val universeMirror = ru.runtimeMirror(getClass.getClassLoader)
 
   def companionOf[T](implicit tt: ru.TypeTag[T])  = {
-    val companionMirror = universeMirror.reflectModule(ru.typeOf[T].typeSymbol.companionSymbol.asModule)
+    val companionMirror = universeMirror.reflectModule(ru.typeOf[T].typeSymbol.companion.asModule)
     companionMirror.instance
   }
 }

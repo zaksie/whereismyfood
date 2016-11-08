@@ -1,7 +1,5 @@
 package info.whereismyfood.libs.auth
 
-import info.whereismyfood.libs.sms.TwilioClient
-
 /**
   * Created by zakgoichman on 11/2/16.
   */

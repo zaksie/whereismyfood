@@ -1,9 +1,8 @@
 package info.whereismyfood.libs.geo
 
-import com.google.cloud.datastore.{Entity, FullEntity}
+import com.google.cloud.datastore.FullEntity
 import info.whereismyfood.libs.database.DatastoreStorable
 import info.whereismyfood.libs.math.LatLng
-import scala.reflect.runtime.universe._
 /**
   * Created by zakgoichman on 11/4/16.
   */
@@ -39,9 +38,9 @@ case class Address(latLng: LatLng, street: String = "", buildingNo: String = "",
     entity.set(propkey_latlng, latLng.toDatastoreLatLng)
     for (field <- this.getClass.getDeclaredFields) {
       field.setAccessible(true)
-      val value = field.get(this)
-      if(value.isInstanceOf[String]) {
-        entity.set(field.getName, value.asInstanceOf[String])
+      field.get(this) match {
+        case s: String =>
+          entity.set(field.getName, s)
       }
     }
     Option(entity.build())

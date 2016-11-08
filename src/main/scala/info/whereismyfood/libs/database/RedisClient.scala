@@ -4,7 +4,7 @@ import info.whereismyfood.aux.{ActorSystemContainer, MyConfig}
 import redis.protocol.MultiBulk
 import redis.{ByteStringDeserializer, ByteStringSerializer, RedisClient => RedisClientLib}
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 /**
   * Created by zakgoichman on 10/30/16.

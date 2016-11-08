@@ -6,8 +6,6 @@ import info.whereismyfood.libs.auth.DatabaseAccount.UUID
 import info.whereismyfood.libs.auth.Roles.RoleID
 import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable}
 
-import collection.JavaConverters._
-
 
 
 object UnverifiedAccount extends DatastoreFetchable[UnverifiedAccount] {
@@ -30,12 +28,10 @@ object UnverifiedAccount extends DatastoreFetchable[UnverifiedAccount] {
   def verify(creds: Creds): Option[DatabaseAccount] = {
     val una = new UnverifiedAccount(creds)
     getFromDatastore(una) match {
-      case Some(found) => {
-        if(found.matches(una)) {
+      case Some(found) =>
+        if (found.matches(una))
           DatabaseAccount.add(found)
-        }
         else None
-      }
       case None => None
     }
   }

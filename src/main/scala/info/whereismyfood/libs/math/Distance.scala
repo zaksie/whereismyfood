@@ -1,11 +1,11 @@
 package info.whereismyfood.libs.math
 
-import boopickle.Default._
 import akka.util.ByteString
+import boopickle.Default._
 import com.google.cloud.datastore.{Entity, FullEntity, Key, ReadOption, LatLng => DSLatLng}
+import com.google.maps.model.{LatLng => GoogleLatLng}
 import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable, KVStorable}
 import redis.ByteStringFormatter
-import com.google.maps.model.{LatLng => GoogleLatLng}
 
 /**
   * Created by zakgoichman on 11/1/16.

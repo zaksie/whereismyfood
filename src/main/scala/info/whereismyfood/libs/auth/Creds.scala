@@ -2,7 +2,7 @@ package info.whereismyfood.libs.auth
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter
-import com.google.cloud.datastore.{Value, _}
+import com.google.cloud.datastore._
 import info.whereismyfood.libs.auth.DatabaseAccount.UUID
 import info.whereismyfood.libs.auth.Roles.RoleID
 import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable}
@@ -11,8 +11,8 @@ import info.whereismyfood.routes.auth.JwtApi
 import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol
 
-import collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
+import scala.collection.JavaConverters._
+import scala.util.Try
 
 /**
   * Created by zakgoichman on 11/2/16.

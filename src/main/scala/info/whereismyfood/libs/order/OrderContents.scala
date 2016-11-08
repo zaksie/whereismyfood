@@ -1,8 +1,8 @@
 package info.whereismyfood.libs.order
 
-import com.google.cloud.datastore.{EntityValue, PathElement}
+import com.google.cloud.datastore.EntityValue
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 
 /**
   * Created by zakgoichman on 11/8/16.

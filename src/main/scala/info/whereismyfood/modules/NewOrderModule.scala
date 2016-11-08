@@ -2,14 +2,13 @@ package info.whereismyfood.modules
 
 import akka.actor.{Actor, Props}
 import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.util.Timeout
 import info.whereismyfood.aux.ActorSystemContainer
+import info.whereismyfood.aux.MyConfig.Topics
+import info.whereismyfood.libs.order.{DatabaseOrder, Order}
 
 import scala.concurrent.duration._
-import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import info.whereismyfood.aux.MyConfig.Topics
-import info.whereismyfood.libs.database.Databases
-import info.whereismyfood.libs.order.{DatabaseOrder, Order}
 
 /**
   * Created by zakgoichman on 10/24/16.
@@ -27,13 +26,13 @@ class NewOrderActor extends Actor {
   val mediator = DistributedPubSub(context.system).mediator
 
   override def receive: Receive = {
-    case order: Order => {
+    case order: Order =>
       val ok = DatabaseOrder.save(order)
       if(ok)
         mediator ! Publish(Topics.clientUpdates + order.recipient.phone, order)
 
       sender ! ok
-    }
+
   }
 }
 

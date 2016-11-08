@@ -1,19 +1,19 @@
 package info.whereismyfood.modules
 
 import akka.actor.{Actor, Props}
+import akka.pattern.ask
 import akka.util.Timeout
 import com.google.gson.GsonBuilder
-import info.whereismyfood.aux.ActorSystemContainer
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.util.matching.Regex
-import akka.pattern.ask
 import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution
+import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.libs.database.Databases
 import info.whereismyfood.libs.geo.DistanceMatrixRequestParams
 import info.whereismyfood.libs.math.{Distance, DistanceMatrix, LatLng, Location}
 import info.whereismyfood.libs.opres.cvrp._
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.util.matching.Regex
 
 /**
   * Created by zakgoichman on 10/24/16.
@@ -30,13 +30,12 @@ class OptRouteActor extends Actor {
   val googleDistanceApiActorRef = Await.result(system.actorSelection("/user/libs/google-distance-matrix-api").resolveOne(), resolveTimeout.duration)
 
   override def receive: Receive = {
-    case params: DistanceMatrixRequestParams => {
-      val locations = getLocations(params);
+    case params: DistanceMatrixRequestParams =>
+      val locations = getLocations(params)
       val distanceMatrix = getDistanceMatrix(locations)
       val result = solveCVRP(locations, distanceMatrix.get)
       //val json = gson.toJson(result)
       sender ! result
-    }
   }
   def getLocations(params : DistanceMatrixRequestParams) : Seq[LatLng] = {
     val points = getLatLngs(params.destinations)
@@ -85,18 +84,16 @@ class OptRouteActor extends Actor {
     getFromMemory(locations) match {
       case (Seq(), distanceMatrix: DistanceMatrix) => Some(distanceMatrix)
       case (missing: Seq[LatLng], distanceMatrix: DistanceMatrix) => getFromDatabase(missing) match {
-        case (Seq(), dm2: DistanceMatrix) => {
+        case (Seq(), dm2: DistanceMatrix) =>
           updateMemory(dm2.getAll)
 
           Some(distanceMatrix.merge(dm2))
-        }
         case (_: Seq[LatLng], dm2: DistanceMatrix) => getFromGoogleApi(locations) match {
-          case Some(dm3) => {
+          case Some(dm3) =>
             updateMemory(dm3.getAll ++ dm2.getAll)
             updateDatabase(dm3.getAll)
 
             Some(dm3.merge(dm2).merge(distanceMatrix))
-          }
           case None => None
         }
       }

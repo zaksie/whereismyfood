@@ -1,8 +1,8 @@
 package info.whereismyfood.libs.user
 
 import akka.actor.ActorRef
-import akka.pattern.ask
 import akka.cluster.pubsub.DistributedPubSubMediator._
+import akka.pattern.ask
 import akka.util.Timeout
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.libs.auth.Creds

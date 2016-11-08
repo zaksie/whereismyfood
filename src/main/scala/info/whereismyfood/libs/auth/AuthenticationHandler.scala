@@ -1,8 +1,8 @@
 package info.whereismyfood.libs.auth
 
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
-import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server._
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.libs.auth.DatabaseAccount.UUID
 import info.whereismyfood.libs.auth.Roles.RoleID
@@ -88,16 +88,16 @@ trait AuthenticationHandler {
   }
 
   def checkJwt: Directive1[Creds] = {
-    parameter('token ? "").flatMap{
+    parameter('token ? "").flatMap {
       case "TEST" =>
-        provide(Creds(phone="5333", role=Some(Roles.chef)))
+        provide(Creds(phone = "5333", role = Some(Roles.chef)))
       case "CLIENT" =>
-        provide(Creds(phone="100", role=Some(Roles.client)))
+        provide(Creds(phone = "100", role = Some(Roles.client)))
       case "CLIENT2" =>
-        provide(Creds(phone="444", role=Some(Roles.client)))
+        provide(Creds(phone = "444", role = Some(Roles.client)))
       case "COURIER" =>
-        provide(Creds(phone="555", role=Some(Roles.courier)))
-      case token => {
+        provide(Creds(phone = "555", role = Some(Roles.courier)))
+      case token =>
         val parsed = decodeJwt(token)
         if (parsed.isFailure) {
           complete(HttpResponse(StatusCodes.Unauthorized))
@@ -111,14 +111,13 @@ trait AuthenticationHandler {
               case Left(x) => Roles(x)
               case Right(x) => Roles(x)
             }
-            provide(Creds(dbid = Some(dbid), phone=phone, role=role, uuid=Some(uuid)))
+            provide(Creds(dbid = Some(dbid), phone = phone, role = role, uuid = Some(uuid)))
           } catch {
             case x: Exception =>
               log.error("Error while parsing decoded jwt", x)
               complete(HttpResponse(StatusCodes.Unauthorized))
           }
         }
-      }
     }
   }
 }

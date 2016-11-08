@@ -2,9 +2,9 @@ package info.whereismyfood.libs.math
 
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter
 import com.google.cloud.datastore.{Entity, LatLngValue, Query, QueryResults, ReadOption, LatLng => DSLatLng}
-import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable}
+import info.whereismyfood.libs.database.DatastoreFetchable
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 
 /**
   * Created by zakgoichman on 10/25/16.

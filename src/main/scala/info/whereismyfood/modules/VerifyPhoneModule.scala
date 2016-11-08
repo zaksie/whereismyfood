@@ -1,11 +1,11 @@
 package info.whereismyfood.modules
 
-import akka.pattern.ask
 import akka.actor.{Actor, Props}
+import akka.pattern.ask
 import akka.util.Timeout
 import com.google.gson.Gson
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.libs.auth.{Creds, DatabaseAccount, PhoneNumberVerifier, UnverifiedAccount}
+import info.whereismyfood.libs.auth.{Creds, DatabaseAccount, PhoneNumberVerifier}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -32,9 +32,7 @@ object VerifyPhoneModule {
 
 class VerifyPhoneActor extends Actor {
   override def receive: Receive = {
-    case creds: Creds => {
-      sender ! PhoneNumberVerifier.sendCode(creds)
-    }
+    case creds: Creds => sender ! PhoneNumberVerifier.sendCode(creds)
   }
 }
 

@@ -12,8 +12,6 @@ class ModuleActors extends Actor {
     context.actorOf(NewOrderModule.props, "new-order")
 
     override def receive: Receive = {
-        case _ => {
-            throw new Exception("Invalid actor call")
-        }
+        case _ => throw new Exception("Invalid actor call")
     }
 }

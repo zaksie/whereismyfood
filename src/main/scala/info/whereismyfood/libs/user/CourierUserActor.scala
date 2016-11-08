@@ -2,10 +2,10 @@ package info.whereismyfood.libs.user
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.{Publish}
+import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import info.whereismyfood.aux.MyConfig.Topics
 import info.whereismyfood.libs.auth.Creds
-import info.whereismyfood.libs.geo.{GeolocationRegistry}
+import info.whereismyfood.libs.geo.GeolocationRegistry
 import info.whereismyfood.libs.user.UserActorUtils._
 
 /**

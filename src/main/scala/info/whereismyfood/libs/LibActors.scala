@@ -10,8 +10,6 @@ class LibActors extends Actor {
     context.actorOf(DistanceMatrixActor.props, "google-distance-matrix-api")
 
     override def receive: Receive = {
-        case _ => {
-            throw new Exception("Invalid actor call")
-        }
+        case _ => throw new Exception("Invalid actor call")
     }
 }

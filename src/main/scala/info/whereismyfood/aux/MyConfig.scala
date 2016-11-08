@@ -1,6 +1,6 @@
 package info.whereismyfood.aux
 
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 
 /**
   * Created by zakgoichman on 10/21/16.

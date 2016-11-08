@@ -1,9 +1,9 @@
 package info.whereismyfood.libs.auth
 
-import com.google.cloud.datastore.{Entity, Query, QueryResults, ReadOption}
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter
+import com.google.cloud.datastore.{Entity, Query, QueryResults, ReadOption}
 import info.whereismyfood.libs.auth.Roles.RoleID
-import info.whereismyfood.libs.database.{Databases, DatastoreFetchable}
+import info.whereismyfood.libs.database.DatastoreFetchable
 
 /**
   * Created by zakgoichman on 10/31/16.

@@ -3,13 +3,13 @@ package info.whereismyfood.routes.api.v1.ws
 import akka.NotUsed
 import akka.actor.PoisonPill
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
-import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.OverflowStrategy
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.libs.auth.{Creds, Roles}
-import info.whereismyfood.libs.user.{ClientUserActor, CourierUserActor}
 import info.whereismyfood.libs.user.UserActorUtils._
+import info.whereismyfood.libs.user.{ClientUserActor, CourierUserActor}
 
 /**
   * Created by zakgoichman on 11/1/16.

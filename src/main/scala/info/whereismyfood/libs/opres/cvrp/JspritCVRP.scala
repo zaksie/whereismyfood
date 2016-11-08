@@ -1,15 +1,15 @@
 package info.whereismyfood.libs.opres.cvrp
 
 import com.graphhopper.jsprit.core.algorithm.box.Jsprit
-import com.graphhopper.jsprit.core.problem.{Location, VehicleRoutingProblem}
 import com.graphhopper.jsprit.core.problem.job.Service
 import com.graphhopper.jsprit.core.problem.vehicle.{VehicleImpl, VehicleTypeImpl}
+import com.graphhopper.jsprit.core.problem.{Location, VehicleRoutingProblem}
 import com.graphhopper.jsprit.core.reporting.SolutionPrinter
 import com.graphhopper.jsprit.core.reporting.SolutionPrinter.Print
-import com.graphhopper.jsprit.core.util.{FastVehicleRoutingTransportCostsMatrix, Solutions, VehicleRoutingTransportCostsMatrix}
+import com.graphhopper.jsprit.core.util.{Solutions, VehicleRoutingTransportCostsMatrix}
 import info.whereismyfood.libs.math.{DistanceMatrix, Location => MyLocation}
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 
 /**
   * Created by zakgoichman on 10/29/16.
@@ -62,24 +62,24 @@ class JspritCVRP(orders: Seq[Order], fleet: Fleet, startPos: MyLocation, distanc
      * the defined vehicles can be used to solve the problem
      * by default, transport costs are computed as Euclidean distances
      */
-    val problem = vrpBuilder.build();
+    val problem = vrpBuilder.build()
 
     /*
 * get the algorithm out-of-the-box.
 */
-    val algorithm = Jsprit.createAlgorithm(problem);
+    val algorithm = Jsprit.createAlgorithm(problem)
 
     /*
     * and search a solution which returns a collection of solutions (here only one solution is constructed)
     */
-    val solutions = algorithm.searchSolutions();
+    val solutions = algorithm.searchSolutions()
 
     /*
      * use the static helper-method in the utility class Solutions to get the best solution (in terms of least costs)
      */
-    val bestSolution = Solutions.bestOf(solutions);
+    val bestSolution = Solutions.bestOf(solutions)
 
-    SolutionPrinter.print(problem, bestSolution, Print.VERBOSE);
+    SolutionPrinter.print(problem, bestSolution, Print.VERBOSE)
     bestSolution
   }
 

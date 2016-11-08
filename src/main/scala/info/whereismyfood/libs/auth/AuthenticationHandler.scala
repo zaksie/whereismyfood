@@ -4,6 +4,8 @@ import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.Directives._
 import info.whereismyfood.aux.MyConfig
+import info.whereismyfood.libs.auth.DatabaseAccount.UUID
+import info.whereismyfood.libs.auth.Roles.RoleID
 import io.igl.jwt._
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsNumber, JsString, JsValue}
@@ -55,8 +57,8 @@ trait AuthenticationHandler {
     res.isSuccess
   }
 
-  def createTokenWithRole(uuid: String, phone: String, role: String): String = {
-    val jwt = new DecodedJwt(ENCRYPTION, Seq(Iss(phone), Iss(uuid), Aud(role)))
+  def createTokenWithRole(uuid: UUID, phone: String, role: RoleID): String = {
+    val jwt = new DecodedJwt(ENCRYPTION, Seq(Iss(phone), Iss(uuid.toString), Aud(role.toString)))
     jwt.encodedAndSigned(SECRET)
   }
 
@@ -69,7 +71,7 @@ trait AuthenticationHandler {
     val jwt = new DecodedJwt(ENCRYPTION,
       Seq(Iss(account.phone),
         Dbid(account.datastoreId.getOrElse(-1)),
-        Uuid(account.uuid),
+        Uuid(account.uuid.get),
         Aud(account.role.toString)))
     jwt.encodedAndSigned(SECRET)
   }
@@ -86,11 +88,16 @@ trait AuthenticationHandler {
   }
 
   def checkJwt: Directive1[Creds] = {
-    parameter('token ? "").flatMap{ token =>
-      //TODO: Remove!!
-      if (token == "TEST")
-        provide(Creds(phone="5333", role=1))
-      else {
+    parameter('token ? "").flatMap{
+      case "TEST" =>
+        provide(Creds(phone="5333", role=Some(Roles.chef)))
+      case "CLIENT" =>
+        provide(Creds(phone="100", role=Some(Roles.client)))
+      case "CLIENT2" =>
+        provide(Creds(phone="444", role=Some(Roles.client)))
+      case "COURIER" =>
+        provide(Creds(phone="555", role=Some(Roles.courier)))
+      case token => {
         val parsed = decodeJwt(token)
         if (parsed.isFailure) {
           complete(HttpResponse(StatusCodes.Unauthorized))
@@ -104,7 +111,7 @@ trait AuthenticationHandler {
               case Left(x) => Roles(x)
               case Right(x) => Roles(x)
             }
-            provide(Creds(dbid = dbid, phone=phone, role=role.get, uuid=uuid))
+            provide(Creds(dbid = Some(dbid), phone=phone, role=role, uuid=Some(uuid)))
           } catch {
             case x: Exception =>
               log.error("Error while parsing decoded jwt", x)

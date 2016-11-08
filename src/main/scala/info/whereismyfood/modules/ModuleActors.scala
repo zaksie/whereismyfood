@@ -9,7 +9,7 @@ import akka.routing.RoundRobinPool
 class ModuleActors extends Actor {
     context.actorOf(OptRouteModule.props.withRouter(RoundRobinPool(5)), name = "optroute")
     context.actorOf(VerifyPhoneModule.props.withRouter(RoundRobinPool(5)), "request-verify-phone")
-    context.actorOf(LocationSharingModule.props.withRouter(RoundRobinPool(5)), "share-location")
+    context.actorOf(NewOrderModule.props, "new-order")
 
     override def receive: Receive = {
         case _ => {

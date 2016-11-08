@@ -19,5 +19,6 @@ object MyConfig {
   object Topics{
     val courierGeolocation = "courier-geolocation"
     val clientUpdates = "client-updates"
+    val courierUpdates = "courier-updates"
   }
 }

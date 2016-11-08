@@ -15,9 +15,10 @@ object PhoneNumberVerifier {
     "Welcome phone whereismyfood. Your code: " + code
   }
 
-  def sendCode(uuid: String, to: String): Boolean ={
-    val code = generateCode
-    if(UnverifiedAccount.save(uuid, to, code)) {
+  def sendCode(creds: Creds): Boolean ={
+    val code = Some(generateCode)
+    val credsWithCode = creds.copy(code = code)
+    if(UnverifiedAccount.save(credsWithCode)) {
       //TwilioClient.send(phone, getBody(code))
       true
     }

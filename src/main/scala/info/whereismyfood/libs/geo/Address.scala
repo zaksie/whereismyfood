@@ -33,7 +33,7 @@ case class Address(latLng: LatLng, street: String = "", buildingNo: String = "",
 
   override def saveToDatastore = throw new UnsupportedOperationException
 
-  override def prepareDatastoreEntity: Option[FullEntity[_]] = {
+  override def asDatastoreEntity: Option[FullEntity[_]] = {
     val key = datastore.newKeyFactory().setKind(kind).newKey()
     val entity = FullEntity.newBuilder(key)
     entity.set(propkey_latlng, latLng.toDatastoreLatLng)

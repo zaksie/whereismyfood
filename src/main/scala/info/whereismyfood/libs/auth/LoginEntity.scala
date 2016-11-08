@@ -2,6 +2,7 @@ package info.whereismyfood.libs.auth
 
 import com.google.cloud.datastore.{Entity, Query, QueryResults, ReadOption}
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter
+import info.whereismyfood.libs.auth.Roles.RoleID
 import info.whereismyfood.libs.database.{Databases, DatastoreFetchable}
 
 /**
@@ -27,4 +28,4 @@ object LoginEntity extends DatastoreFetchable[LoginEntity] {
   }
 }
 
-case class LoginEntity(name: String, role: Long)
+case class LoginEntity(name: String, role: RoleID)

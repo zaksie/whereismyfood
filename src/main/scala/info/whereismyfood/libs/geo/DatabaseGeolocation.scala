@@ -23,14 +23,13 @@ object DatabaseGeolocation extends DatastoreFetchable[DatabaseGeolocation]{
 case class DatabaseGeolocation(browserGeolocation: BrowserGeolocation)(implicit creds: Creds) extends DatastoreStorable with KVStorable {
   import DatabaseGeolocation._
 
-  override def prepareDatastoreEntity: Option[FullEntity[_]] = {
+  override def asDatastoreEntity: Option[FullEntity[_]] = {
     DatabaseAccount.getFromDatastore(creds.phone) match {
       case Some(records) => {
-        val record = records.find(_.uuid == creds.uuid)
+        val record = records(0)
+        if(record.datastoreId.isEmpty) return None
 
-        if(record.isEmpty || record.get.datastoreId.isEmpty) return None
-
-        val ancestor = PathElement.of(DatabaseAccount.kind, record.get.datastoreId.get)
+        val ancestor = PathElement.of(DatabaseAccount.kind, record.datastoreId.get)
         val key = datastore.newKeyFactory().setKind(kind).addAncestor(ancestor).newKey()
         val entity = FullEntity.newBuilder(key)
         for (field <- browserGeolocation.coords.getClass.getDeclaredFields) {

@@ -91,7 +91,7 @@ case class Distance(from: Location, to: Location, distanceInMeters: Long, timeIn
 
   override def key: String = getOwnHash
 
-  override def prepareDatastoreEntity: Option[FullEntity[_]] = {
+  override def asDatastoreEntity: Option[FullEntity[_]] = {
     val distanceKey = datastore.newKeyFactory().setKind(kind).newKey(key)
     Option(Entity.newBuilder(distanceKey)
       .set(propkey_distanceInMeters, distanceInMeters)

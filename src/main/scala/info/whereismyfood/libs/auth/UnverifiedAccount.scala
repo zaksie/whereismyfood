@@ -2,7 +2,10 @@ package info.whereismyfood.libs.auth
 
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter
 import com.google.cloud.datastore._
+import info.whereismyfood.libs.auth.DatabaseAccount.UUID
+import info.whereismyfood.libs.auth.Roles.RoleID
 import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable}
+
 import collection.JavaConverters._
 
 
@@ -14,8 +17,8 @@ object UnverifiedAccount extends DatastoreFetchable[UnverifiedAccount] {
   val propkey_phone = "phone"
   val propkey_role = "role"
 
-  def save(uuid: String, phone: String, code: String): Boolean = {
-    val una = UnverifiedAccount(uuid, phone, code)
+  def save(creds: Creds): Boolean = {
+    val una = new UnverifiedAccount(creds)
     /*DatabaseAccount.getFromDatastore(una.uuid, una.phone) match {
       case Some(_) => false
       case None => una.saveToDatastore; true
@@ -49,8 +52,8 @@ object UnverifiedAccount extends DatastoreFetchable[UnverifiedAccount] {
     else {
       val r = result.next
       Some(UnverifiedAccount(
-        r.getString(propkey_uuid),
         r.getString(propkey_phone),
+        Option(r.getString(propkey_uuid)),
         r.getString(propkey_code),
         r.getLong(propkey_role)
       ))
@@ -58,16 +61,18 @@ object UnverifiedAccount extends DatastoreFetchable[UnverifiedAccount] {
   }
 }
 
-final case class UnverifiedAccount(uuid: String, phone: String, code: String, role: Long = Roles.client) extends DatastoreStorable{
+final case class UnverifiedAccount(phone: String, uuid: Option[UUID], code: String, role: RoleID = Roles.unknown) extends DatastoreStorable{
   import UnverifiedAccount._
 
-  def this(a: Creds) = this(a.uuid, a.phone, a.code)
+  def this(a: Creds) = this(a.phone, a.uuid, a.code.getOrElse(""), a.role.getOrElse(Roles.unknown))
+
   def matches(a: UnverifiedAccount): Boolean =
     code == a.code && phone == a.phone && uuid == a.uuid && role == a.role
-  override def prepareDatastoreEntity: Option[FullEntity[_]] = {
+
+  override def asDatastoreEntity: Option[FullEntity[_]] = {
     val key = datastore.newKeyFactory().setKind(kind).newKey(phone)
     Option(Entity.newBuilder(key)
-      .set(propkey_uuid, uuid)
+      .set(propkey_uuid, uuid.getOrElse(""))
       .set(propkey_phone, phone)
       .set(propkey_code, code)
       .set(propkey_role, role)

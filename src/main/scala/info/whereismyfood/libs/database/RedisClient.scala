@@ -10,6 +10,14 @@ import scala.concurrent.duration._
   * Created by zakgoichman on 10/30/16.
   */
 class RedisClient private {
+  def addToList[T<:KVStorable](key: String, items: Seq[T], expiry: Duration = 30 days)(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
+    val redisTransaction = redis.transaction() // new TransactionBuilder
+    redisTransaction.watch(key) // watch for changes to key
+    redisTransaction.lpush(key, items:_*)
+    redisTransaction.expire(key, expiry.toSeconds)
+    redisTransaction.exec()
+  }
+
   implicit val system = ActorSystemContainer.getSystem
   implicit val materializer = ActorSystemContainer.getMaterializer
   implicit val executionContext = system.dispatcher

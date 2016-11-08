@@ -13,7 +13,7 @@ class DatastoreClient private {
   val client = DatastoreOptions.getDefaultInstance.getService
 
   def save[T <: DatastoreStorable](ts: T*): Unit = {
-    client.put(ts.flatMap(_.prepareDatastoreEntity):_*)
+    client.put(ts.flatMap(_.asDatastoreEntity):_*)
   }
 }
 

@@ -7,5 +7,5 @@ import info.whereismyfood.libs.auth.Creds
   */
 object WS {
   def routes(implicit creds: Creds) =
-      Tracking.routes
+      Join.routes
 }

@@ -33,7 +33,7 @@ object VerifyPhoneModule {
 class VerifyPhoneActor extends Actor {
   override def receive: Receive = {
     case creds: Creds => {
-      sender ! PhoneNumberVerifier.sendCode(creds.uuid, creds.phone)
+      sender ! PhoneNumberVerifier.sendCode(creds)
     }
   }
 }

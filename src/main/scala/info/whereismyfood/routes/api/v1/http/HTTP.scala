@@ -10,5 +10,6 @@ import info.whereismyfood.routes.auth.VerifyPhone
 object HTTP {
   def routes(implicit creds: Creds) =
     VerifyPhone.routes ~
-    OptRoute.routes
+    OptRoute.routes ~
+    ClientOrder.routes
 }

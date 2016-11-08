@@ -9,20 +9,20 @@ import akka.stream.OverflowStrategy
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.libs.auth.{Creds, Roles}
 import info.whereismyfood.libs.user.{ClientUserActor, CourierUserActor}
-import info.whereismyfood.libs.user.GenericUserActor._
+import info.whereismyfood.libs.user.UserActorUtils._
 
 /**
   * Created by zakgoichman on 11/1/16.
   */
-object Tracking {
+object Join {
   implicit val system = ActorSystemContainer.getSystem
   implicit val materializer = ActorSystemContainer.getMaterializer
 
   def createUserActor(implicit creds: Creds) = {
     creds.role match {
-      case Roles.courier =>
+      case Some(Roles.courier) =>
         Some(system.actorOf(CourierUserActor.props))
-      case Roles.client =>
+      case Some(Roles.client) =>
         Some(system.actorOf(ClientUserActor.props))
       case _ =>
         None

@@ -17,18 +17,19 @@ trait KVStorable {
 trait DatastoreStorable {
   protected def datastore = DatastoreClient.instance.client
   def saveToDatastore: Option[Entity] = {
-    prepareDatastoreEntity match {
+    asDatastoreEntity match {
       case Some(record) =>
         Option(datastore.put(record))
       case _ => None
     }
   }
-  def prepareDatastoreEntity: Option[FullEntity[_]]
+  def asDatastoreEntity: Option[FullEntity[_]]
 }
 
 trait DatastoreFetchable[E] {
   protected def datastore = DatastoreClient.instance.client
-  def getFromDatastore(param: Any): Option[E] = throw new NotImplementedError
-  def getFromDatastore(param: String): Option[E] = throw new NotImplementedError
-  def getFromDatastore(param1: String, param2: String): Option[E] = throw new NotImplementedError
+  def getFromDatastore(param: Any): Option[E] = ???
+  def getFromDatastore(param: String): Option[E] = ???
+  def getFromDatastore(param1: String, param2: String): Option[E] = ???
+  def getFromDatastore(param1: String, param2: Option[String]): Option[E] = ???
 }

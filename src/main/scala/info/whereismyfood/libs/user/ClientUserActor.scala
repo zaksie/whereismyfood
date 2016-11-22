@@ -3,30 +3,29 @@ package info.whereismyfood.libs.user
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import info.whereismyfood.aux.MyConfig.Topics
-import info.whereismyfood.libs.auth.Creds
 import info.whereismyfood.libs.geo.BrowserGeolocation
-import info.whereismyfood.libs.order.Order
+import info.whereismyfood.models.order.Order
 import info.whereismyfood.libs.user.UserActorUtils._
+import info.whereismyfood.models.user.{ClientUser, Creds}
 
 import scala.collection.mutable
 /**
   * Created by zakgoichman on 11/7/16.
   */
 case class ClientSubscriptions(override val actor: ActorRef)
-                              (implicit override val creds: Creds, implicit override val mediator: ActorRef)
+                              (implicit override val user: ClientUser, implicit override val mediator: ActorRef)
   extends Subscriptions(actor){
-  override def selfTopic: String = Topics.clientUpdates + creds.phone
+  override def selfTopic: String = Topics.clientUpdates + user.phone
 }
 
 object ClientUserActor {
-  def props(implicit creds: Creds) =
+  def props(implicit user: ClientUser) =
     Props(new ClientUserActor)
 }
 
-class ClientUserActor(implicit creds: Creds) extends Actor with ActorLogging {
-
+class ClientUserActor(implicit user: ClientUser) extends Actor with ActorLogging {
   implicit val mediator = DistributedPubSub(context.system).mediator
-  var user:Option[ActorRef] = None
+  var connectedUser:Option[ActorRef] = None
   val subscriptions = ClientSubscriptions(self)
   val orders = mutable.ArrayBuffer[Order]()
   var counter = 0
@@ -39,7 +38,7 @@ class ClientUserActor(implicit creds: Creds) extends Actor with ActorLogging {
       followOrder(order)
     case courierLocation: BrowserGeolocation =>
       println(s"""Counter: $counter
-      Phone: $creds
+      Phone: ${user.phone}
       Location: $courierLocation
       """)
       counter += 1
@@ -52,7 +51,7 @@ class ClientUserActor(implicit creds: Creds) extends Actor with ActorLogging {
     case courierLocation: (Creds, BrowserGeolocation) =>
       println(courierLocation)
     case Connected(outgoing) =>
-      user = Some(outgoing)
+      connectedUser = Some(outgoing)
       log.info("connected");
     case IncomingMessage(text) =>
       log.warning("client not supposed to be sending anything to server")
@@ -61,6 +60,7 @@ class ClientUserActor(implicit creds: Creds) extends Actor with ActorLogging {
   }
 
   def followOrder(order: Order): Unit = {
-    subscriptions += Topics.courierGeolocation + order.courier.phone
+    //TODO: sort this out
+    //subscriptions += Topics.courierGeolocation + order.courier.phone
   }
 }

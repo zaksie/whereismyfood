@@ -7,9 +7,9 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.libs.auth.{Creds, Roles}
 import info.whereismyfood.libs.user.UserActorUtils._
 import info.whereismyfood.libs.user.{ClientUserActor, CourierUserActor}
+import info.whereismyfood.models.user.{ClientUser, CourierUser, Creds, Roles}
 
 /**
   * Created by zakgoichman on 11/1/16.
@@ -19,14 +19,16 @@ object Join {
   implicit val materializer = ActorSystemContainer.getMaterializer
 
   def createUserActor(implicit creds: Creds) = {
-    creds.role match {
-      case Some(Roles.courier) =>
-        Some(system.actorOf(CourierUserActor.props))
-      case Some(Roles.client) =>
-        Some(system.actorOf(ClientUserActor.props))
-      case _ =>
-        None
+    if (Roles.isCourier(creds.role)) {
+      implicit val user = CourierUser.of(creds)
+      Some(system.actorOf(CourierUserActor.props))
     }
+    else if (Roles.isClient(creds.role)) {
+      implicit val user = ClientUser.of(creds)
+      Some(system.actorOf(ClientUserActor.props))
+    }
+    else
+      None
   }
 
   def join(implicit creds: Creds): Flow[Message, Message, _] =

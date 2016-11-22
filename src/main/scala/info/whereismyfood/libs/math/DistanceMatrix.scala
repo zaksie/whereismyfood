@@ -1,9 +1,7 @@
 package info.whereismyfood.libs.math
 
-import com.google.cloud.datastore.StructuredQuery.PropertyFilter
-import com.google.cloud.datastore.{Entity, LatLngValue, Query, QueryResults, ReadOption, LatLng => DSLatLng}
-import info.whereismyfood.libs.database.DatastoreFetchable
-
+import info.whereismyfood.libs.geo.GeoMySQLInterface
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.JavaConverters._
 
 /**
@@ -11,30 +9,23 @@ import scala.collection.JavaConverters._
   */
 
 
-object DistanceMatrix extends DatastoreFetchable[DistanceMatrix] {
-  def getFromDB(param: Any): Option[DistanceMatrix] = getFromDatastore(param)
-  override def getFromDatastore(params: Any): Option[DistanceMatrix] = {
-    val locations = params.asInstanceOf[Seq[LatLng]]
-    val distanceMatrix = DistanceMatrix()
+object DistanceMatrix {
+  def getFromDBWithinRadius(locations: Seq[LatLng], radius_meter: Long = 50): Option[DistanceMatrix] = getFromMySQL(locations, radius_meter)
 
-    for(l <- locations) {
-      val fromQueries = get("phone", l)
-      val toQueries = get("phone", l)
-
-      fromQueries.asScala.foreach(r => distanceMatrix.add(new Distance(r)))
-      toQueries.asScala.foreach(r => distanceMatrix.add(new Distance(r)))
+  private def getFromMySQL(locations: Seq[LatLng], radius_meter: Long): Option[DistanceMatrix] = {
+    val dm = DistanceMatrix()
+    locations.foreach { p1 =>
+      locations.foreach {
+        case p2 if p1 != p2 =>
+          GeoMySQLInterface.findDistanceBetween(p1,p2, radius_meter).map{
+            case Some(distance) =>
+              dm.add(distance)
+            case _ =>
+          }
+        case _ =>
+      }
     }
-
-    def get(fieldName: String, location: LatLng): QueryResults[Entity] = {
-      val q = Query.newEntityQueryBuilder
-        .setKind(Distance.kind)
-        .setFilter(PropertyFilter.eq(fieldName, new LatLngValue(DSLatLng.of(location.lat, location.lng))))
-        .build
-
-      datastore.run(q, ReadOption.eventualConsistency())
-    }
-
-    Some(distanceMatrix)
+    dm.toOption
   }
 }
 case class DistanceMatrix() {
@@ -56,7 +47,7 @@ case class DistanceMatrix() {
   }
 
   def getAll : Seq[Distance] = distances
-  def get(from: LatLng, to: LatLng): Option[Distance] = distances.find(d => d.from.latLng == from && d.to.latLng == to)
+  def get(from: LatLng, to: LatLng): Option[Distance] = distances.find(d => d.from == from && d.to == to)
   def size = {
     distances.map(_.from).distinct.length
   }
@@ -64,6 +55,14 @@ case class DistanceMatrix() {
   def merge(dm2: DistanceMatrix): DistanceMatrix = {
     this.add(dm2.distances: _*)
     this
+  }
+
+  def toOption: Option[DistanceMatrix] = if (distances.isEmpty) None else Some(this)
+
+  def saveToDB(): Unit = saveToMySQL()
+
+  private def saveToMySQL(): Unit = {
+    distances.foreach(_.saveToDB)
   }
 }
 

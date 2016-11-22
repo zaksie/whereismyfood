@@ -16,6 +16,7 @@ object TwilioClient {
   Twilio.init(ACCOUNT_SID, AUTH_TOKEN)
 
   def send(to: String, body: String): Unit = {
+    return
     Message.create(ACCOUNT_SID,
       new PhoneNumber(to), // To number
       FROM, // From number

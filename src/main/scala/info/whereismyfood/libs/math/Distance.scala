@@ -1,20 +1,30 @@
 package info.whereismyfood.libs.math
 
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.util.ByteString
 import boopickle.Default._
-import com.google.cloud.datastore.{Entity, FullEntity, Key, ReadOption, LatLng => DSLatLng}
 import com.google.maps.model.{LatLng => GoogleLatLng}
-import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable, KVStorable}
+import com.google.cloud.datastore.{LatLng => DSLatLng}
+import info.whereismyfood.libs.database.KVStorable
+import info.whereismyfood.libs.geo.{Address, GeoMySQLInterface}
+import org.slf4j.LoggerFactory
 import redis.ByteStringFormatter
+import spray.json.DefaultJsonProtocol
 
 /**
   * Created by zakgoichman on 11/1/16.
   */
+//TODO: rewrite with cloudsql instead of datastore
 
-object LatLng {
+
+case class DistanceParams(meters: Long, seconds: Long)
+
+object LatLng extends DefaultJsonProtocol with SprayJsonSupport{
   def apply(geoPt: GoogleLatLng) = new LatLng(geoPt)
-}
+  def apply(dsPt: DSLatLng) = new LatLng(dsPt)
+  implicit val credsFormatter = jsonFormat(LatLng.apply, "lat", "lng")
 
+}
 case class LatLng(lat: Double, lng: Double){
   def this(latLng: GoogleLatLng) = this(latLng.lat, latLng.lng)
   def this(latLng: DSLatLng) = this(latLng.getLatitude, latLng.getLongitude)
@@ -22,29 +32,12 @@ case class LatLng(lat: Double, lng: Double){
   def toDatastoreLatLng = DSLatLng.of(lat, lng)
 
   override def toString: String = lat.toString + "," + lng.toString
-}
-object Location {
-  def apply(name: String, geoPt: DSLatLng) = new Location(name, geoPt)
-  def apply(name: String, geoPt: GoogleLatLng) = new Location(name, geoPt)
-}
-case class Location(name: String, latLng: LatLng){
-  def this(name: String, geoPt: DSLatLng) = this(name, LatLng(geoPt.getLatitude, geoPt.getLongitude))
-  def this(name: String, geoPt: GoogleLatLng) = this(name, LatLng(geoPt))
-
-  val geoid : String = latLng.toString
-  def toGeoPt: DSLatLng = DSLatLng.of(latLng.lat, latLng.lng)
+  val geoid : String = toString
 }
 
-object Distance extends DatastoreFetchable[Distance] {
+object Distance {
   val zero = Distance(null, null, 0, 0)
-  val propkey_distanceInMeters = "distanceInMeters"
-  val propkey_timeInSeconds = "timeInSeconds"
-  val propkey_from = "phone"
-  val propkey_to = "phone"
-  val propkey_fromName = "fromName"
-  val propkey_toName = "toName"
-  val kind = "Distance"
-
+  val log = LoggerFactory.getLogger(this.getClass)
   implicit val byteStringFormatter = new ByteStringFormatter[Distance] {
     override def serialize(data: Distance): ByteString = {
       val pickled = Pickle.intoBytes[Distance](data)
@@ -58,49 +51,30 @@ object Distance extends DatastoreFetchable[Distance] {
   def getHash(from: LatLng, to: LatLng): String = {
     from.toString + ":" + to.toString
   }
-
-  def getHash(from: Location, to: Location): String = {
-    getHash(from.latLng, to.latLng)
-  }
-  def getFromDB(param: Any): Option[Distance] = getFromDatastore(param)
-
-  override def getFromDatastore(hashcode: String): Option[Distance] = {
-    val distanceKey: Key = datastore.newKeyFactory().setKind(kind).newKey(hashcode)
-    val result = datastore.get(distanceKey, ReadOption.eventualConsistency())
-    val from = Location(result.getString(propkey_fromName), result.getLatLng(propkey_from))
-    val to = Location(result.getString(propkey_toName), result.getLatLng(propkey_to))
-    Some(Distance(from, to,
-      result.getLong(propkey_distanceInMeters),
-      result.getLong(propkey_timeInSeconds)))
-  }
 }
-case class Distance(from: Location, to: Location, distanceInMeters: Long, timeInSeconds: Long)
-  extends KVStorable with DatastoreStorable {
+case class Distance(from: LatLng, to: LatLng, distance_meter: Long, distance_sec: Long) extends KVStorable{
   import Distance._
-
-  def this(e: Entity) = {
-    this(Location(e.getString(Distance.propkey_fromName), e.getLatLng(Distance.propkey_from)),
-      Location(e.getString(Distance.propkey_toName), e.getLatLng(Distance.propkey_to)),
-      e.getLong(Distance.propkey_distanceInMeters),
-      e.getLong(Distance.propkey_timeInSeconds))
+  def saveToDB: Unit = {
+    log.warn("Attempting to use saveToDB on Distance object [NOT ALLOWED]")
   }
+
+  import Distance._
 
   def getOwnHash: String ={
     getHash(from, to)
   }
 
   override def key: String = getOwnHash
+}
 
-  override def asDatastoreEntity: Option[FullEntity[_]] = {
-    val distanceKey = datastore.newKeyFactory().setKind(kind).newKey(key)
-    Option(Entity.newBuilder(distanceKey)
-      .set(propkey_distanceInMeters, distanceInMeters)
-      .set(propkey_timeInSeconds, timeInSeconds)
-      .set(propkey_from, from.toGeoPt)
-      .set(propkey_to, to.toGeoPt)
-      .set(propkey_fromName, from.name)
-      .set(propkey_toName, to.name)
-      .build())
+class DistanceEx(val fromAddr:Address, val toAddr: Address,
+                      override val distance_meter: Long, override val distance_sec: Long)
+  extends Distance(fromAddr.latLng, toAddr.latLng, distance_meter, distance_sec){
+  override def saveToDB: Unit = saveToMySQL
+
+  protected def saveToMySQL: Unit = {
+    GeoMySQLInterface.saveAddressAndLocation(fromAddr, toAddr)
+    GeoMySQLInterface.saveDistances(from, to, distance_meter, distance_sec)
   }
 }
 

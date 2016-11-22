@@ -1,10 +1,13 @@
 package info.whereismyfood
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, PoisonPill}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
+import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
 import akka.http.scaladsl.Http
 import info.whereismyfood.aux.ActorSystemContainer
+import info.whereismyfood.aux.MyConfig.ActorNames
+import info.whereismyfood.modules.business.{BusinessScanner, ScanForBusinesses}
 import info.whereismyfood.routes.Routes
 import org.slf4j.LoggerFactory
 
@@ -37,12 +40,33 @@ case class WebServerClusterListener(port: Int) extends Actor with ActorLogging {
 
   // subscribe to cluster changes, re-subscribe when restart
   override def preStart(): Unit = {
-    //#subscribe
     WebServer.start(port)
+
+    //TODO: either do something with this info or unsubscribe before going live
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
       classOf[MemberEvent], classOf[UnreachableMember])
 
-    //#subscribe
+    //Scans for changes in business records in db
+    val ref1 = context.actorOf(ClusterSingletonManager.props(
+      singletonProps = BusinessScanner.props,
+      terminationMessage = PoisonPill,
+      settings = ClusterSingletonManagerSettings(context.system)),
+      ActorNames.Bare.businessManager)
+
+    println(s"BusinessScanner path: ${ref1.path}")
+
+    val businessScanner = context.actorOf(
+      ClusterSingletonProxy.props(
+        singletonManagerPath = ActorNames.Paths.businessManager,
+        settings = ClusterSingletonProxySettings(context.system)),
+      name = ActorNames.Bare.businessManager+ "-proxy")
+
+    import scala.concurrent.duration._
+    context.system.scheduler.schedule(
+      0 milliseconds,
+      1 second,
+      businessScanner,
+      ScanForBusinesses)(context.system.dispatcher)
   }
   override def postStop(): Unit = cluster.unsubscribe(self)
 

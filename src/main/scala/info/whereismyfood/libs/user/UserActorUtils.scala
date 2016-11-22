@@ -5,7 +5,7 @@ import akka.cluster.pubsub.DistributedPubSubMediator._
 import akka.pattern.ask
 import akka.util.Timeout
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.libs.auth.Creds
+import info.whereismyfood.models.user.{Creds, GenericUser}
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -20,7 +20,7 @@ object UserActorUtils {
   case class UnsubscribeToCourier(topic: String)
   case class ClientUpdates(topicToFollow: String)
 
-  abstract class Subscriptions(val actor: ActorRef)(implicit val creds: Creds, implicit val mediator: ActorRef) {
+  abstract class Subscriptions(val actor: ActorRef)(implicit val user: GenericUser, implicit val mediator: ActorRef) {
     private val subscriptions: mutable.Set[String] = mutable.Set()
     implicit val resolveTimeout = Timeout(30 seconds)
     implicit val system = ActorSystemContainer.getSystem

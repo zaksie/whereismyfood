@@ -1,11 +1,12 @@
 package info.whereismyfood.libs.geo
 
+import akka.actor.Status.Failure
 import akka.actor.{Actor, Props}
 import com.google.maps.DirectionsApi.RouteRestriction
 import com.google.maps.model.{DistanceMatrix, DistanceMatrixElementStatus, TravelMode, LatLng => GoogleLatLng}
 import com.google.maps.{DistanceMatrixApi, GeoApiContext}
 import info.whereismyfood.aux.MyConfig
-import info.whereismyfood.libs.math.{Distance, LatLng, Location, DistanceMatrix => MyDistanceMatrix}
+import info.whereismyfood.libs.math.{DistanceEx, LatLng, DistanceMatrix => MyDistanceMatrix}
 
 
 /**
@@ -16,14 +17,13 @@ object DistanceMatrixActor {
   val geoApiContext = new GeoApiContext().setApiKey(MyConfig.get("google.apikey"))
   def props = Props[DistanceMatrixActor]
 }
-case class DistanceMatrixRequestParams(start: String, destinations: String)
 
 class DistanceMatrixActor extends Actor {
   val MAX_ALLOWABLE_LENGTH = 10
-  val goeApiContext = DistanceMatrixActor.geoApiContext
+  import DistanceMatrixActor._
 
   override def receive: Receive = {
-    case points: Seq[LatLng] => {
+    case points: Seq[LatLng] =>
       //if(points.length > MAX_ALLOWABLE_LENGTH) throw new Exception("Exceeded maximum coordinate set count of " + MAX_ALLOWABLE_LENGTH)
       val groups = points.map(_.toGoogleLatLng).grouped(MAX_ALLOWABLE_LENGTH).toSeq
       val dm = MyDistanceMatrix()
@@ -34,12 +34,11 @@ class DistanceMatrixActor extends Actor {
         }
       }
       sender ! dm
-    }
-    case _ => sender ! "this actor accepts DistanceMatrixRequestParams"
+    case _ => sender ! Failure(new Exception("Incorrect input to DistanceMatrixActor"))
   }
 
   def generateDistanceMatrix(from: Seq[GoogleLatLng], to: Seq[GoogleLatLng]):MyDistanceMatrix = {
-    val result = DistanceMatrixApi.newRequest(goeApiContext)
+    val result = DistanceMatrixApi.newRequest(geoApiContext)
       .units(com.google.maps.model.Unit.METRIC)
       .origins(from:_*)
       .destinations(to:_*)
@@ -55,12 +54,12 @@ class DistanceMatrixActor extends Actor {
         if (data.status != DistanceMatrixElementStatus.OK || f._1 == t._1) None
         else {
           val fromName = result.originAddresses(f._2)
-          val fromLoc = Location(fromName, f._1)
-
           val toName = result.destinationAddresses(t._2)
-          val toLoc = Location(toName, t._1)
 
-          Option(Distance(fromLoc, toLoc, data.distance.inMeters, data.duration.inSeconds))
+          Option(new DistanceEx(Address(LatLng(f._1), fromName),
+            Address(LatLng(t._1), toName),
+            data.distance.inMeters,
+            data.duration.inSeconds))
         }
       }
     })

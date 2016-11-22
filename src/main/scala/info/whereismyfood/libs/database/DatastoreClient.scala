@@ -1,7 +1,7 @@
 package info.whereismyfood.libs.database
 
 
-import com.google.cloud.datastore.DatastoreOptions
+import com.google.cloud.datastore.{DatastoreOptions, Entity, FullEntity}
 import org.slf4j.LoggerFactory
 
 /**
@@ -19,5 +19,21 @@ class DatastoreClient private {
 
 object DatastoreClient{
   val instance = new DatastoreClient
+}
+
+trait DatastoreStorable {
+  protected def datastore = DatastoreClient.instance.client
+  def saveToDatastore: Option[Entity] = {
+    asDatastoreEntity match {
+      case Some(record) =>
+        Option(datastore.put(record))
+      case _ => None
+    }
+  }
+  def asDatastoreEntity: Option[FullEntity[_]]
+}
+
+trait DatastoreFetchable[E] {
+  protected def datastore = DatastoreClient.instance.client
 }
 

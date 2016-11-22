@@ -1,25 +1,14 @@
-package info.whereismyfood.libs.order
+package info.whereismyfood.models.order
 
-import akka.util.ByteString
-import boopickle.Default._
+
 import com.google.cloud.datastore._
 import info.whereismyfood.libs.database.{DatastoreStorable, KVStorable}
-import redis.ByteStringFormatter
 
 /**
   * Created by zakgoichman on 11/8/16.
   */
 object OrderItemCompanion {
   val kind = "OrderItem"
-  implicit val byteStringFormatter = new ByteStringFormatter[OrderItem] {
-    override def serialize(data: OrderItem): ByteString = {
-      val pickled = Pickle.intoBytes[OrderItem](data)
-      ByteString(pickled)
-    }
-    override def deserialize(bs: ByteString): OrderItem = {
-      Unpickle[OrderItem].fromBytes(bs.asByteBuffer)
-    }
-  }
 }
 case class Price(humanReadable: String, value: Double, currency: String)
 case class OrderItem(name: String, image: String, description: String,

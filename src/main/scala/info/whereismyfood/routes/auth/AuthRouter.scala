@@ -8,7 +8,6 @@ import akka.http.scaladsl.server.Directives._
 object AuthRouter {
   def routes =
     pathPrefix("auth") {
-      JwtApi.routes ~
-      VerifyPhone.routes
+      Login.routes
     }
 }

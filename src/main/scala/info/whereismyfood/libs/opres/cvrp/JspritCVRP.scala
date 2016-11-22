@@ -7,7 +7,7 @@ import com.graphhopper.jsprit.core.problem.{Location, VehicleRoutingProblem}
 import com.graphhopper.jsprit.core.reporting.SolutionPrinter
 import com.graphhopper.jsprit.core.reporting.SolutionPrinter.Print
 import com.graphhopper.jsprit.core.util.{Solutions, VehicleRoutingTransportCostsMatrix}
-import info.whereismyfood.libs.math.{DistanceMatrix, Location => MyLocation}
+import info.whereismyfood.libs.math.{DistanceMatrix, LatLng}
 
 import scala.collection.JavaConverters._
 
@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
   */
 
 
-class JspritCVRP(orders: Seq[Order], fleet: Fleet, startPos: MyLocation, distanceMatrix: DistanceMatrix) {
+class JspritCVRP(orders: Seq[Order], fleet: Fleet, startPos: LatLng, distanceMatrix: DistanceMatrix) {
   private val services: Seq[Service] = buildOrders()
   private val vehicles: Seq[VehicleImpl] = buildFleet()
   private val routingCostMatrix = readDistances(distanceMatrix)
@@ -86,7 +86,7 @@ class JspritCVRP(orders: Seq[Order], fleet: Fleet, startPos: MyLocation, distanc
   private def readDistances(distanceMatrix: DistanceMatrix): VehicleRoutingTransportCostsMatrix = {
     val matrixBuilder = VehicleRoutingTransportCostsMatrix.Builder.newInstance(false)
     for(d <- distanceMatrix.getAll) {
-      matrixBuilder.addTransportDistance(d.from.geoid, d.to.geoid, d.distanceInMeters)
+      matrixBuilder.addTransportDistance(d.from.geoid, d.to.geoid, d.distance_meter)
     }
     matrixBuilder.build
   }

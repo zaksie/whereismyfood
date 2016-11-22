@@ -21,4 +21,13 @@ object MyConfig {
     val clientUpdates = "client-updates"
     val courierUpdates = "courier-updates"
   }
+
+  object ActorNames{
+    object Paths{
+      val businessManager = "/user/cluster-node/" + get("actor-names.business-manager")
+    }
+    object Bare{
+      val businessManager = get("actor-names.business-manager")
+    }
+  }
 }

@@ -16,6 +16,7 @@ import scala.collection.JavaConverters._
   */
 
 object CourierUser extends GenericUserTrait[CourierUser]{
+  def jobInBusiness: Business.JobInBusiness = Business._couriers
 
   def of(creds: Creds): CourierUser = CourierUser(creds)
 

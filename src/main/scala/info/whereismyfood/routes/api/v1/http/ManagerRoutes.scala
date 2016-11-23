@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.stream.scaladsl.StreamConverters
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.libs.storage.GoogleStorageClient
-import info.whereismyfood.models.business.AdminUserAssets
+import info.whereismyfood.models.business.{AdminUserAssets, Business}
 import info.whereismyfood.models.user.{CourierJson, Creds, Roles}
 import info.whereismyfood.modules.courier.CourierModule.AddCourier
 import org.slf4j.LoggerFactory
@@ -70,7 +70,7 @@ object ManagerRoutes {
                 AddCourier(CourierJson(
                   Some(allParts("name")),
                   allParts("phone"),
-                  filePart),
+                  filePart), creds,
                   allParts("business").toLong
                 )
               }.toOption match {
@@ -93,7 +93,20 @@ object ManagerRoutes {
           }
         } ~
         delete{
-          complete(200)
+          entity(as[String]) { businessId =>
+            Try{
+              businessId.toLong
+            }.toOption match {
+              case Some(id) =>
+                if (!creds.businessIds.contains(id)) complete(403)
+                else {
+                  Business.removeJobFrom(phone, id, Business._couriers)
+                  complete(200)
+                }
+              case _ =>
+                complete(401)
+            }
+          }
         }
       } ~
       pathEndOrSingleSlash{

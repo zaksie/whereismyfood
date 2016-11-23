@@ -3,10 +3,7 @@ package info.whereismyfood.routes.auth
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.libs.auth._
-import info.whereismyfood.models.user.Roles._
-import info.whereismyfood.models.user.{Creds, _}
-import info.whereismyfood.modules.auth.VerifyPhoneModule
+import info.whereismyfood.models.user._
 
 /**
   * Created by zakgoichman on 10/23/16.
@@ -67,55 +64,4 @@ object Login extends Directives with AuthenticationHandler {
           }
         }
     }
-
-  /*
-  ~
-      (path("request-chef-otp") & post) {
-        entity(as[MobileChefCreds]) { creds =>
-          complete {
-            RegisteredUser.find(creds.asTrustedCreds) match {
-              case Some(account) =>
-                Roles.isauthorized(manager) match {
-                  case false => HttpResponse(StatusCodes.Unauthorized, entity = "Login credentials are invalid")
-                  case true =>
-                    val code = if (VerifyPhoneModule.requestOTPForChef(account, creds)) StatusCodes.OK else StatusCodes.Unauthorized
-                    HttpResponse(code)
-                }
-              case _ => HttpResponse(StatusCodes.Unauthorized, entity = "Login credentials are invalid")
-            }
-          }
-        }
-      } ~
-      (path("chef-otp-login") & post) {
-        entity(as[MobileChefCreds]) { creds =>
-          complete {
-            RegisteredUser.find(creds.asTrustedCreds) match {
-              case Some(account) =>
-                val jwt = createToken {
-                  RegisteredUser.createChefAccount(account, creds.asTrustedCreds)
-                }
-                HttpResponse(StatusCodes.OK, entity = s"""{"jwt":"$jwt"}""")
-              case _ => HttpResponse(StatusCodes.Unauthorized, entity = "Login credentials are invalid")
-            }
-          }
-        }
-      } ~
-      (path("request-otp") & post) {
-        entity(as[String]) { phone =>
-          val creds = Creds(phone)
-          val code = if (VerifyPhoneModule.requestOTP(creds)) StatusCodes.OK else StatusCodes.Unauthorized
-          complete(HttpResponse(code))
-        }
-      } ~
-      (path("otp-login") & post) {
-        entity(as[Creds]) { creds =>
-          val result = VerifyPhoneModule.verifyExistingUser(creds.asTrustedCreds)
-          complete {
-            if (result.ok) HttpResponse(StatusCodes.OK, entity = result.toJson)
-            else HttpResponse(StatusCodes.Unauthorized, entity = result.toJson)
-          }
-        }
-      }
-  }
-  */
 }

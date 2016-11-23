@@ -1,11 +1,11 @@
 package info.whereismyfood.models.business
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import com.google.cloud.datastore.StructuredQuery.{PropertyFilter}
+import com.google.cloud.datastore.StructuredQuery.PropertyFilter
 import com.google.cloud.datastore._
-import info.whereismyfood.libs.database.{DatastoreFetchable}
+import info.whereismyfood.libs.database.DatastoreFetchable
 import info.whereismyfood.libs.geo.Address
-import info.whereismyfood.models.user.{Creds}
+import info.whereismyfood.models.user.Creds
 import spray.json.DefaultJsonProtocol
 
 import collection.JavaConverters._
@@ -16,11 +16,15 @@ import scala.util.Try
   */
 
 object Business extends DatastoreFetchable[Business] {
+  type JobInBusiness = String
   val kind = "Business"
   val _name = "name"
   val _address = "address"
-  val _owners = "owners"
-  val _couriers = "couriers"
+  val _owners: JobInBusiness  = "owners"
+  val _couriers: JobInBusiness  = "couriers"
+  val _chefs: JobInBusiness = "chefs"
+  val _apiers: JobInBusiness = "apiers"
+  val _none: JobInBusiness = "none"
 
   def get(ids: Long*): Seq[Business] = {
     getFromDatastore(ids:_*)
@@ -30,10 +34,12 @@ object Business extends DatastoreFetchable[Business] {
     Try {
       val owners = entity.getList[StringValue](_owners).asScala.map(_.get).toSet
       val couriers = entity.getList[StringValue](_couriers).asScala.map(_.get).toSet
+      val chefs = entity.getList[StringValue](_chefs).asScala.map(_.get).toSet
+      val apiers = entity.getList[StringValue](_apiers).asScala.map(_.get).toSet
       Business(entity.getKey.getId,
         entity.getString(_name),
         new Address(entity.getEntity(_address)),
-        owners, couriers)
+        owners, couriers, chefs, apiers)
     }.toOption
   }
 
@@ -59,50 +65,85 @@ object Business extends DatastoreFetchable[Business] {
       .asScala.toSet.flatMap(Business.fromEntity)
   }
 
-  private def getEntitiesFor(phone: String): Set[Entity]={
+  private def getEntitiesFor(phone: String, jobInBusiness: JobInBusiness): Set[Entity]={
     val q: Query[Entity] = Query.newEntityQueryBuilder()
       .setKind(Business.kind)
-      .setFilter(PropertyFilter.eq(Business._owners, phone))
+      .setFilter(PropertyFilter.eq(jobInBusiness, phone))
       .build()
 
     datastore.run(q, ReadOption.eventualConsistency())
       .asScala.toSet
   }
 
-  def getIdsFor(phone: String): Set[Long] = {
-    getEntitiesFor(phone).map(_.getKey.getId.toLong)
+  def getIdsFor(phone: String, jobInBusiness: JobInBusiness): Set[Long] = {
+    getEntitiesFor(phone, jobInBusiness).map(_.getKey.getId.toLong)
   }
-  def getAllFor(phone: String): Set[Business]={
-    getEntitiesFor(phone).flatMap(Business.fromEntity)
-  }
-
-  def addCourierTo(courierId: String, businessId: Long): Boolean = {
-    addToDatastore(courierId, businessId)
+  def getAllFor(phone: String, jobInBusiness: JobInBusiness): Set[Business]={
+    getEntitiesFor(phone, jobInBusiness).flatMap(Business.fromEntity)
   }
 
-  def addToDatastore(courierId: String, businessId: Long): Boolean = {
-    Try {
-      val addedCourier = StringValue.of(courierId)
+  def removeJobFrom(id: String, businessId: Long, jobInBusiness: JobInBusiness): Boolean = {
+    val txn = datastore.newTransaction()
+    try {
       val key: Key = createKeys(businessId).head
-      val entity = datastore.get(key, ReadOption.eventualConsistency)
-      val couriers: Set[StringValue] = entity.getList[StringValue](_couriers)
+      val entity = txn.get(key)
+      val couriers: Set[StringValue] = entity.getList[StringValue](jobInBusiness)
+        .asScala.toSet.filter(_.get != id)
+
+      val newEntity = Entity.newBuilder(entity)
+        .set(jobInBusiness, couriers.toList.asJava)
+        .build
+      txn.update(newEntity)
+      txn.commit()
+      true
+    } finally {
+      txn.isActive() match {
+        case true =>
+          txn.rollback()
+          false
+        case _ => true
+      }
+    }
+  }
+
+  def addJobTo(id: String, businessId: Long, jobInBusiness: JobInBusiness): Boolean = {
+    addToDatastore(id, businessId, jobInBusiness)
+  }
+
+  def addToDatastore(id: String, businessId: Long, jobInBusiness: JobInBusiness): Boolean = {
+    val txn = datastore.newTransaction()
+    try {
+      val addedCourier = StringValue.of(id)
+      val key: Key = createKeys(businessId).head
+      val entity = txn.get(key)
+      val couriers: Set[StringValue] = entity.getList[StringValue](jobInBusiness)
         .asScala.toSet + addedCourier
 
       val newEntity = Entity.newBuilder(entity)
-        .set(_couriers, couriers.toList.asJava)
+        .set(jobInBusiness, couriers.toList.asJava)
         .build
-      datastore.update(newEntity)
-    }.isSuccess
+      txn.update(newEntity)
+      txn.commit()
+      true
+    } finally {
+      txn.isActive() match {
+        case true =>
+          txn.rollback()
+          false
+        case _ => true
+      }
+    }
   }
 }
 
 
-case class Business(id: Long, name: String, address: Address, owners: Set[String], couriers: Set[String], config: BusinessConfig = BusinessConfig.default)
+case class Business(id: Long, name: String, address: Address, owners: Set[String], couriers: Set[String],
+                    chefs: Set[String], apiers: Set[String], config: BusinessConfig = BusinessConfig.default)
 
 
 
 trait BusinessJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import Address._
   import BusinessConfig._
-  implicit val formatter2 = jsonFormat6(Business.apply)
+  implicit val formatter2 = jsonFormat8(Business.apply)
 }

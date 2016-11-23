@@ -5,7 +5,7 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.util.Timeout
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.models.business.Business
-import info.whereismyfood.models.user.{CourierJson, CourierUser}
+import info.whereismyfood.models.user.{CourierJson, CourierUser, Creds}
 
 import scala.concurrent.duration._
 
@@ -14,7 +14,7 @@ import scala.concurrent.duration._
   */
 
 object CourierModule {
-  case class AddCourier(courier: CourierJson, businessId: Long)
+  case class AddCourier(courier: CourierJson, creds: Creds, businessId: Long)
   case class ChangeCourier(courier: CourierJson, businessId: Long)
   case class DeleteCourier(courierId: Long, businessId: Long)
 
@@ -30,11 +30,12 @@ class CourierActor extends Actor {
   import CourierModule.AddCourier
 
   override def receive: Receive = {
-    case AddCourier(courier, businessId) =>
-      CourierUser.of(courier, businessId) match {
+    case AddCourier(courier, creds, businessId) =>
+      if(!creds.businessIds.contains(businessId)) sender ! false
+      else CourierUser.of(courier, businessId) match {
         case user: CourierUser =>
           user.save
-          sender ! Business.addCourierTo(courier.phone, businessId)
+          sender ! Business.addJobTo(courier.phone, businessId, Business._couriers)
         case _ => sender ! false
       }
   }

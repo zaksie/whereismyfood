@@ -2,7 +2,7 @@ package info.whereismyfood.models.user
 
 import com.google.cloud.datastore.{Entity, Key}
 import com.google.cloud.datastore.FullEntity.Builder
-import info.whereismyfood.libs.geo.Address
+import info.whereismyfood.models.business.Business
 import info.whereismyfood.models.user.Roles.RoleID
 
 /**
@@ -17,6 +17,9 @@ object APIUser extends GenericUserTrait[APIUser]{
   override def isAuthorized(user: GenericUser): Boolean = {
     (user.role & role) != 0
   }
+
+  def jobInBusiness: Business.JobInBusiness = Business._apiers
+
 }
 
 final case class APIUser(private val creds: Creds) extends GenericUser(creds){

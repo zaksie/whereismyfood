@@ -6,6 +6,7 @@ import info.whereismyfood.libs.auth.{OTP, VerificationResult}
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable}
 import info.whereismyfood.libs.geo.Address
 import info.whereismyfood.models.business.Business
+import info.whereismyfood.models.business.Business.JobInBusiness
 import info.whereismyfood.models.user.Roles.RoleID
 import info.whereismyfood.routes.auth.Login
 import org.slf4j.LoggerFactory
@@ -19,7 +20,7 @@ import info.whereismyfood.modules.auth.RequestOTP
   */
 private object FieldNames {
   val _phone = "phone"
-  val _uuid = "deviceId"
+  val _deviceId = "deviceId"
   val _name = "name"
   val _email = "email"
   val _role = "role"
@@ -38,7 +39,7 @@ trait GenericUserTrait[T <: GenericUser]{
   def role: RoleID
   val log = LoggerFactory.getLogger("GenericUser")
   val USER_KIND = "User"
-
+  def jobInBusiness: JobInBusiness
   def isAuthorized(user: GenericUser): Boolean = {
     (user.role & role) != 0
   }
@@ -53,19 +54,23 @@ trait GenericUserTrait[T <: GenericUser]{
   def findAndVerify(apiKey: APIKey): Option[T] = {
     find(apiKey.key) match {
       case Some(user) =>
-        if(user.deviceId.isEmpty){
-          user.setDeviceId(apiKey.uuid)
-          user.save
+        user.deviceId match {
+          case Some(existingDevId) if existingDevId.nonEmpty =>
+            if (existingDevId == apiKey.uuid) Some(user)
+            else None
+          case _ =>
+            user.verify(apiKey)
+            Option(user.save)
         }
-        Some(user)
       case _ => None
     }
   }
+
   def of(entity: Entity): Option[T] = {
     import FieldNames._
     Try {
       val creds = Creds(entity.getString(_phone),
-        Option(entity.getString(_uuid)),
+        Option(entity.getString(_deviceId)),
         None,
         Option(entity.getString(_name)),
         Option(entity.getString(_email)),
@@ -81,7 +86,7 @@ trait GenericUserTrait[T <: GenericUser]{
       }
 
       creds.setRole(entity.getLong(_role))
-      creds.setBusinesses(Business.getIdsFor(creds.phone))
+      creds.setBusinesses(Business.getIdsFor(creds.phone, jobInBusiness))
       val obj: T = of(creds)
       obj.extendFromDatastore(entity)
     }.toOption
@@ -98,7 +103,6 @@ trait GenericUserTrait[T <: GenericUser]{
     }.toOption
   }
 
-  // OTP is only for registered users
   def saveOTP(creds: Creds): Boolean ={
     getFromDatastore(creds.phone) match {
       case Some(account) if creds.otp.isDefined =>
@@ -106,10 +110,6 @@ trait GenericUserTrait[T <: GenericUser]{
         true
       case _ => false
     }
-  }
-
-  def getBusinesses(phone: String): Set[Long] = {
-    Business.getAllFor(phone).map(_.id)
   }
 }
 
@@ -134,7 +134,11 @@ abstract class GenericUser(private val creds: Creds)
   def verified: Boolean = creds.verified
   def image: Option[String] = creds.image
 
-  def setDeviceId(deviceId: String): Unit = creds.setDeviceId(deviceId)
+  def verify(apiKey: APIKey): this.type = {
+    creds.setDeviceId(apiKey.uuid)
+    creds.setVerified(true)
+    this
+  }
 
   def toCreds(otp: Option[String] = None) : Creds ={
     creds.copy(otp = otp)
@@ -163,7 +167,7 @@ abstract class GenericUser(private val creds: Creds)
 
     import FieldNames._
     val entity = FullEntity.newBuilder(key)
-      .set(_uuid, deviceId.getOrElse(""))
+      .set(_deviceId, deviceId.getOrElse(""))
       .set(_phone, phone)
       .set(_email, email.getOrElse(""))
       .set(_name, name.getOrElse(""))

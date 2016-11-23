@@ -2,7 +2,7 @@ package info.whereismyfood.models.user
 
 import com.google.cloud.datastore.FullEntity.Builder
 import com.google.cloud.datastore.{Entity, Key}
-import info.whereismyfood.libs.geo.Address
+import info.whereismyfood.models.business.Business
 import info.whereismyfood.models.user.Roles.RoleID
 
 /**
@@ -13,6 +13,8 @@ import info.whereismyfood.models.user.Roles.RoleID
 object ClientUser extends GenericUserTrait[ClientUser]{
   override def role: RoleID = Roles.client
   override def of(creds: Creds): ClientUser = ClientUser(creds)
+  def jobInBusiness: Business.JobInBusiness = Business._none
+
 }
 
 final case class ClientUser(private val creds: Creds)

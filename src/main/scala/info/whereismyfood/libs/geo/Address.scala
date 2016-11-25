@@ -45,7 +45,13 @@ object Address extends DefaultJsonProtocol with SprayJsonSupport{
             }
         }
 
-        Await.result(f, 10 seconds)
+        Await.result(f, 10 seconds) match {
+          case Some(addr) if !addr.latLng.isValid =>
+            log.error(s"LatLng(${addr.latLng}) is invalid!")
+            None
+          case addr@Some(_) => addr
+          case _ => None
+        }
       case _ => None
     }
   }

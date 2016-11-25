@@ -4,18 +4,25 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import info.whereismyfood.libs.geo.Address
 import info.whereismyfood.models.user.Roles.RoleID
 import info.whereismyfood.models.vehicle.VehicleTypes.VehicleType
+import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol
 
 
 /**
   * Created by zakgoichman on 11/2/16.
   */
-final case class APIKey(key: String, uuid: String)
-final case class Creds(phone: String, private var __deviceId: Option[String] = None, var otp: Option[String] = None,
-                                name: Option[String] = None, email: Option[String] = None, addressString: Option[String] = None){
 
+private object CredsLogger{
+  val log = LoggerFactory.getLogger("Creds")
+}
+
+final case class APIKey(key: String, uuid: String)
+final case class Creds(phone: String, uuid: Option[String] = None, var otp: Option[String] = None,
+                       name: Option[String] = None, email: Option[String] = None, address: Option[String] = None){
+
+  private var __deviceId: Option[String] = None
   def setDeviceId(deviceId: String) = __deviceId = Some(deviceId)
-  def deviceId: Option[String] = __deviceId
+  def deviceId: Option[String] = uuid.orElse(__deviceId)
 
   private var __role: RoleID = Roles.unknown
   def setRole(role: RoleID): Creds = {this.__role = role; this}
@@ -27,7 +34,13 @@ final case class Creds(phone: String, private var __deviceId: Option[String] = N
 
   private var __address: Option[Address] = None
   def setAddress(address: Address): Creds = {this.__address = Option(address); this}
-  def address = __address
+  private def setAddress(address: Option[Address]): Option[Address] = {this.__address = address; address}
+  def geoaddress: Option[Address] = {
+    __address match {
+      case addr @ Some(_) => addr
+      case _ => setAddress(Address.of(address))
+    }
+  }
 
   private var __verified: Boolean = false
   def setVerified(verified: Boolean): Creds = {this.__verified = verified; this}
@@ -49,6 +62,6 @@ final case class Creds(phone: String, private var __deviceId: Option[String] = N
 }
 
 object CredsJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
-  implicit val credsFormatter = jsonFormat(Creds, "phone", "deviceId", "otp", "name", "email", "address")
-  implicit val apikeyFormatter = jsonFormat(APIKey, "key", "uuid")
+  implicit val credsFormatter = jsonFormat(Creds, "phone", "uuid", "otp", "name", "email", "address")
+  implicit val apiKeyFormatter = jsonFormat(APIKey, "key", "uuid")
 }

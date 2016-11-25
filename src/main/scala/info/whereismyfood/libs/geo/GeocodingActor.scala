@@ -14,13 +14,12 @@ import info.whereismyfood.libs.math.{LatLng}
 case class AddressToLatLng(address: String)
 
 object GeocodingActor {
-  val geoApiContext = new GeoApiContext().setApiKey(MyConfig.get("google.apikey"))
   def props = Props[GeocodingActor]
 }
 
 class GeocodingActor extends Actor {
   val MAX_ALLOWABLE_LENGTH = 10
-  import GeocodingActor._
+  import GoogleGeoAPIContext._
 
   override def receive: Receive = {
     case location: LatLng =>

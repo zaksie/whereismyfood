@@ -60,14 +60,14 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
   }
 
   def tryConstructRoute(): Any = {
-    ProcessedOrder.retrieveAll(business.id) match{
+    ProcessedOrder.retrieveAllActive(business.id) match{
       case Seq() => None
       case orders =>
         val orderSet = orders.toSet
         val earliestOrderEpochSecond: Long = orderSet.reduce((a,b)=> if (a.timestamp < b.timestamp) a else b).timestamp
         system.actorSelection("/user/modules/optroute").resolveOne().onComplete{
           case Success(optrouteActorRef) =>
-            orderSet.groupBy(_.client.address.isDefined).foreach{
+            orderSet.groupBy(_.client.geoaddress.isDefined).foreach{
               case (true, haves) =>
                 (tryGetSolution(haves, optrouteActorRef), earliestOrderEpochSecond)
               case (false, havenots) =>
@@ -78,7 +78,7 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
     }
 
     def tryGetSolution(orders: Set[ProcessedOrder], optrouteActorRef: ActorRef): Any = {
-      val dmrp = DistanceMatrixRequestParams(business.address.latLng, orders.map(_.client.address.get.latLng))
+      val dmrp = DistanceMatrixRequestParams(business.address.latLng, orders.map(_.client.geoaddress.get.latLng))
       Await.result(optrouteActorRef ? dmrp, 1 minute)
     }
 

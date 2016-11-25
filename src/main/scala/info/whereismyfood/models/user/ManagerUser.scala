@@ -12,7 +12,6 @@ import info.whereismyfood.models.user.Roles.RoleID
 object ManagerUser extends GenericUserTrait[ManagerUser]{
   override def role: RoleID = Roles.manager
   def jobInBusiness: Business.JobInBusiness = Business._owners
-
   override def of(creds: Creds) = ManagerUser(creds)
   def find(creds: Creds): Option[ManagerUser] = {
     find(creds.phone) match {
@@ -22,6 +21,7 @@ object ManagerUser extends GenericUserTrait[ManagerUser]{
       case _ => None
     }
   }
+  override protected def userActorFactory = None
 }
 
 final case class ManagerUser(private val creds: Creds)

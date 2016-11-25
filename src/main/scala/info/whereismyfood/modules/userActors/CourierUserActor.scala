@@ -1,12 +1,12 @@
-package info.whereismyfood.libs.user
+package info.whereismyfood.modules.userActors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import info.whereismyfood.aux.MyConfig.Topics
 import info.whereismyfood.libs.geo.BrowserGeolocation
-import info.whereismyfood.libs.user.UserActorUtils._
-import info.whereismyfood.models.user.{CourierUser, Creds}
+import info.whereismyfood.models.user.{CourierUser, HasPropsFunc}
+import info.whereismyfood.modules.userActors.UserActorUtils._
 
 /**
   * Created by zakgoichman on 11/7/16.
@@ -17,7 +17,7 @@ case class CourierSubscriptions(override val actor: ActorRef)
   override def selfTopic: String = Topics.courierUpdates + user.phone
 }
 
-object CourierUserActor {
+object CourierUserActor extends HasPropsFunc[CourierUser] {
   def props(implicit user: CourierUser) =
     Props(new CourierUserActor)
 }

@@ -1,5 +1,8 @@
 package info.whereismyfood.models.user
 
+import akka.actor.{ActorRef, Props}
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.http.scaladsl.model.HttpResponse
 import com.google.cloud.datastore._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.libs.auth.{OTP, VerificationResult}
@@ -29,19 +32,46 @@ private object FieldNames {
   val _verified = "verified"
 }
 
-object UserRouter{
-  var classes = Set[Class[_]]()
-  def of(role: RoleID, creds:Creds, businessIds: Set[String] = Set(), address: Option[Address] = None): Unit ={
-  }
+trait HasPropsFunc[T <: GenericUser] {
+  def props(implicit user: T): Props
 }
+
 trait GenericUserTrait[T <: GenericUser]{
-  def datastore = Databases.persistent.client
+  UserRouter.addUserCompanionObject(this)
+  def unlazy = None
+
+  protected def userActorFactory: Option[HasPropsFunc[T]]
+  def createWebSocketActor(implicit creds: Creds): Option[ActorRef] = {
+    userActorFactory match {
+      case Some(factory) =>
+        import info.whereismyfood.aux.ActorSystemContainer.Implicits._
+        implicit val user = of(creds)
+        Some(system.actorOf(factory.props))
+    }
+  }
+
+  protected def datastore = Databases.persistent.client
+  protected val log = LoggerFactory.getLogger("GenericUser")
+  protected val USER_KIND = "User"
+
   def role: RoleID
-  val log = LoggerFactory.getLogger("GenericUser")
-  val USER_KIND = "User"
   def jobInBusiness: JobInBusiness
-  def isAuthorized(user: GenericUser): Boolean = {
-    (user.role & role) != 0
+
+  def isAuthorized(user: GenericUser): Boolean = isAuthorized(user.role)
+  def isAuthorized(roleId: RoleID): Boolean = {
+    (roleId & role) != 0
+  }
+
+  def handshake(creds: Creds): ToResponseMarshallable = {
+    isAuthorized(creds.role) match {
+      case true =>
+        find(creds.phone) match {
+          case Some(user) if user.role == creds.role => 200
+          case Some(user) => HttpResponse(status = 205, entity = user.jwt)
+          case _ => 403
+        }
+      case _ => 403
+    }
   }
 
   def find(phone: String): Option[T] = {
@@ -119,8 +149,8 @@ abstract class GenericUser(private val creds: Creds)
   val USER_KIND = "User"
 
   lazy val addressOptionProcessed = {
-    if(creds.address.isDefined) creds.address
-    else Address.of(creds.addressString)
+    if(creds.geoaddress.isDefined) creds.geoaddress
+    else Address.of(creds.address)
   }
   def jwt = Login.createToken(this)
 

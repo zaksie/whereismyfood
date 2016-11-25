@@ -17,6 +17,6 @@ case class Order(id: String, client: Creds, contents: Seq[OrderItem]) {
 object OrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import info.whereismyfood.models.user.CredsJsonSupport._
   implicit val priceFormat = jsonFormat3(Price)
-  implicit val itemFormat = jsonFormat(OrderItem, "name","image", "description", "notes", "price")
+  implicit val itemFormat = jsonFormat(OrderItem, "name","image", "description", "notes", "price", "ready")
   implicit val orderFormat = jsonFormat(Order.apply, "id", "client", "contents")
 }

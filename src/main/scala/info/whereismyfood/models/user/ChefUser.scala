@@ -1,10 +1,12 @@
 package info.whereismyfood.models.user
 
+import akka.actor.ActorRef
 import com.google.cloud.datastore.FullEntity.Builder
 import com.google.cloud.datastore.{Entity, Key}
 import info.whereismyfood.libs.geo.Address
 import info.whereismyfood.models.business.Business
 import info.whereismyfood.models.user.Roles.RoleID
+import info.whereismyfood.modules.userActors.{ChefUserActor}
 
 /**
   * Created by zakgoichman on 11/18/16.
@@ -13,9 +15,7 @@ import info.whereismyfood.models.user.Roles.RoleID
 
 object ChefUser extends GenericUserTrait[ChefUser]{
   override def role: RoleID = Roles.chef
-
   override def of(creds: Creds) = ChefUser(creds)
-
   override def find(phone: String): Option[ChefUser] = {
     super.find(phone) match {
       case Some(user) =>
@@ -24,7 +24,7 @@ object ChefUser extends GenericUserTrait[ChefUser]{
     }
   }
   def jobInBusiness: Business.JobInBusiness = Business._chefs
-
+  override protected def userActorFactory = Some(ChefUserActor)
 }
 
 final case class ChefUser(private val creds: Creds)

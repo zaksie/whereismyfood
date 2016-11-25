@@ -1,12 +1,12 @@
-package info.whereismyfood.libs.user
+package info.whereismyfood.modules.userActors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import info.whereismyfood.aux.MyConfig.Topics
 import info.whereismyfood.libs.geo.BrowserGeolocation
 import info.whereismyfood.models.order.Order
-import info.whereismyfood.libs.user.UserActorUtils._
-import info.whereismyfood.models.user.{ClientUser, Creds}
+import info.whereismyfood.models.user.{ClientUser, Creds, HasPropsFunc}
+import info.whereismyfood.modules.userActors.UserActorUtils._
 
 import scala.collection.mutable
 /**
@@ -18,7 +18,7 @@ case class ClientSubscriptions(override val actor: ActorRef)
   override def selfTopic: String = Topics.clientUpdates + user.phone
 }
 
-object ClientUserActor {
+object ClientUserActor extends HasPropsFunc[ClientUser] {
   def props(implicit user: ClientUser) =
     Props(new ClientUserActor)
 }

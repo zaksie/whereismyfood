@@ -19,7 +19,6 @@ object GeoMySQLInterface {
     def escape:String = "'" + str.replace("'", "\\'") + "'"
   }
   implicit def stringToEscapedString(s: String) = EscapedString(s)
-
   def saveAddressAndLocation(addresses: Address*): Future[Boolean] = {
     def createQueries(address: Address): Seq[String] = {
       val point = s"""POINT(${address.latLng.lat},${address.latLng.lng})"""
@@ -65,8 +64,6 @@ object GeoMySQLInterface {
       }
     }
   }
-
-
   def findDistanceBetween(from: LatLng, to: LatLng, withinRadius_meter: Long): Future[Option[Distance]] = {
     findNear(from, withinRadius_meter).flatMap {
       case Some(id1) =>
@@ -77,12 +74,11 @@ object GeoMySQLInterface {
                 Some(Distance(from, to, params.meters, params.seconds))
               case _ => None
             }
-          case _ => Future(None)
+          case _ => Future.successful(None)
         }
-      case _ => Future(None)
+      case _ => Future.successful(None)
     }
   }
-
   def findDistanceBetween(from: Long, to: Long): Future[Option[DistanceParams]] = {
     val query =
       s"""SELECT * FROM $schema.distances WHERE from_id=$from AND to_id=$to"""
@@ -90,7 +86,7 @@ object GeoMySQLInterface {
       try{
         val res = Databases.sql.createStatement().executeQuery(query)
         if(res.next()) {
-          Some(DistanceParams(res.getLong("distance_in_meter"), res.getLong("distance_in_sec")))
+          Some(DistanceParams(res.getLong("distance_meter"), res.getLong("distance_sec")))
         }
         else None
       }catch{
@@ -100,7 +96,6 @@ object GeoMySQLInterface {
       }
     }
   }
-
   def findNear(latLng: LatLng, radius_meter: Long): Future[Option[Long]] ={
     val query =
       s"""SELECT id FROM $schema.locations WHERE ST_Distance_Sphere(location, Point(${latLng.lat},${latLng.lng})) < $radius_meter"""
@@ -118,7 +113,6 @@ object GeoMySQLInterface {
       }
     }
   }
-
   def saveDistances(from: LatLng, to: LatLng, distance_meter: Long, distance_sec: Long): Future[Boolean] = {
     val fromPoint = s"""POINT(${from.lat},${from.lng})"""
     val toPoint = s"""POINT(${to.lat},${to.lng})"""
@@ -138,5 +132,4 @@ object GeoMySQLInterface {
       }
     }
   }
-
 }

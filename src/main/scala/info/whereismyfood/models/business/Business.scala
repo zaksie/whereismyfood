@@ -31,16 +31,22 @@ object Business extends DatastoreFetchable[Business] {
   }
 
   def apply(entity: Entity): Option[Business] = {
-    Try {
+    try {
       val owners = entity.getList[StringValue](_owners).asScala.map(_.get).toSet
       val couriers = entity.getList[StringValue](_couriers).asScala.map(_.get).toSet
       val chefs = entity.getList[StringValue](_chefs).asScala.map(_.get).toSet
       val apiers = entity.getList[StringValue](_apiers).asScala.map(_.get).toSet
-      Business(entity.getKey.getId,
-        entity.getString(_name),
-        new Address(entity.getEntity(_address)),
-        owners, couriers, chefs, apiers)
-    }.toOption
+      Some {
+        Business(entity.getKey.getId,
+          entity.getString(_name),
+          new Address(entity.getEntity(_address)),
+          owners, couriers, chefs, apiers)
+      }
+    } catch {
+      case e: Exception =>
+        println(e)
+        None
+    }
   }
 
   def fromEntity(entity:Entity): Option[Business] = {

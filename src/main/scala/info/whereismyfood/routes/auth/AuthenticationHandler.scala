@@ -44,6 +44,7 @@ trait AuthenticationHandler {
   val SECRET = MyConfig.get("jwt.secret")
 
   val SHORT_EXP = Exp(System.currentTimeMillis()/1000 + (3 hours).toSeconds)
+
   def decodeJwt(token: String): Try[Jwt] = {
     DecodedJwt.validateEncodedJwt(
       token, // An encoded jwt as a string
@@ -61,17 +62,6 @@ trait AuthenticationHandler {
         Busid(account.businessIds),
         Aud(account.role.toString)))
     jwt.encodedAndSigned(SECRET)
-  }
-
-  def getAuthToken(req: HttpRequest): String = {
-    val AUTHORIZATION_KEYS: List[String] = List("Authorization", "HTTP_AUTHORIZATION", "X-HTTP_AUTHORIZATION", "X_HTTP_AUTHORIZATION")
-    def authorizationKey: Option[String] = AUTHORIZATION_KEYS.find(req.getHeader(_) != null)
-    val result = if (authorizationKey.isDefined && authorizationKey.get == "Authorization") {
-      req.getHeader("Authorization").get().value()
-    } else {
-      "request have not authorize token"
-    }
-    result
   }
 
   def checkJwt: Directive1[Creds] = {
@@ -110,7 +100,7 @@ trait AuthenticationHandler {
           case Left(x) => Roles(x)
           case Right(x) => Roles(x)
         }
-        val creds = Creds(phone = phone, deviceId = Some(uuid))
+        val creds = Creds(phone = phone, __deviceId = Some(uuid))
         //This is separate from creds because I don't want to receive it from the user
         creds.setRole(role)
         creds.setBusinesses(busid)

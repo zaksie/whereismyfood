@@ -4,28 +4,19 @@ import akka.actor.Status.Failure
 import akka.actor.{Actor, Props}
 import com.google.maps.DirectionsApi.RouteRestriction
 import com.google.maps.model.{DistanceMatrix, DistanceMatrixElementStatus, TravelMode, LatLng => GoogleLatLng}
-import com.google.maps.{DistanceMatrixApi, GeoApiContext}
-import info.whereismyfood.aux.MyConfig
+import com.google.maps.{DistanceMatrixApi}
 import info.whereismyfood.libs.math.{DistanceEx, LatLng, DistanceMatrix => MyDistanceMatrix}
 
-import scala.util.matching.Regex
 
 
 /**
   * Created by zakgoichman on 10/21/16.
   */
-case class DistanceMatrixRequestParams(start: LatLng, destinations: Set[LatLng]){
-  val coordInputPattern = new Regex("""\((.*?)\)""")
-  def getLocations: Seq[LatLng] = {
-    start +: destinations.toSeq //TODO: The conversion to Set is like running distinct?
-  }
+object DirectionsActor {
+  def props = Props[DirectionsActor]
 }
 
-object DistanceMatrixActor {
-  def props = Props[DistanceMatrixActor]
-}
-
-class DistanceMatrixActor extends Actor {
+class DirectionsActor extends Actor {
   val MAX_ALLOWABLE_LENGTH = 10
   import GoogleGeoAPIContext._
 
@@ -41,17 +32,17 @@ class DistanceMatrixActor extends Actor {
         }
       }
       sender ! dm
-    case _ => sender ! Failure(new Exception("Incorrect input to DistanceMatrixActor"))
+    case _ => sender ! Failure(new Exception("Incorrect input to DirectionsActor"))
   }
 
   def generateDistanceMatrix(from: Seq[GoogleLatLng], to: Seq[GoogleLatLng]):MyDistanceMatrix = {
     val result = DistanceMatrixApi.newRequest(geoApiContext)
-      .units(com.google.maps.model.Unit.METRIC)
-      .origins(from:_*)
-      .destinations(to:_*)
-      .mode(TravelMode.DRIVING)
-      .avoid(RouteRestriction.TOLLS)
-      .await()
+        .units(com.google.maps.model.Unit.METRIC)
+        .origins(from:_*)
+        .destinations(to:_*)
+        .mode(TravelMode.DRIVING)
+        .avoid(RouteRestriction.TOLLS)
+        .await()
     parseResults(result, from.zipWithIndex, to.zipWithIndex)
   }
   def parseResults(result: DistanceMatrix, from: Seq[(GoogleLatLng, Int)], to: Seq[(GoogleLatLng, Int)]): MyDistanceMatrix = {

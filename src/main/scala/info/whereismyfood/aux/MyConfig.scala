@@ -17,9 +17,10 @@ object MyConfig {
   }
 
   object Topics{
-    val courierGeolocation = "courier-geolocation"
-    val clientUpdates = "client-updates"
-    val courierUpdates = "courier-updates"
+    val courierGeolocation = "courier-geolocation:"
+    val clientUpdates = "client-updates:"
+    val courierUpdates = "courier-updates:"
+    val chefUpdates = "chef-updates:"
   }
 
   object ActorNames{

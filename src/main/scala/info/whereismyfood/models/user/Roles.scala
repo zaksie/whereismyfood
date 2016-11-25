@@ -9,12 +9,12 @@ import scala.util.Try
 object Roles {
 
   type RoleID = Long
-  private def role(index: Long): Long = 1 << index
+  private def role(index: Long): Long = 1L << index
 
   val unknown = 0
   val client = role(0)
   val courier = role(1)
-  val chef = role(2) | api.order.modify
+  val chef = role(2) | api.order.markReady | api.order.view
   val manager = role(3)
   object api{
     val master = MAX - 1 // good for 31 roles
@@ -23,10 +23,11 @@ object Roles {
       val modify = role(5)
       val delete = role(6)
       val markReady = role(7)
+      val view = role(8)
       val all = add | modify | delete | markReady
     }
   }
-  val MAX = 1 << 32
+  val MAX = role(62) - 1L
 
 
   def apply(str: String): RoleID = str.toLong

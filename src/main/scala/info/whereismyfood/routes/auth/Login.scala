@@ -17,7 +17,8 @@ object Login extends Directives with AuthenticationHandler {
     HttpResponse(StatusCodes.OK, entity = encodedToken)
   }
 
-  def routes = (path("request-otp" / Segment) & post) {
+  def routes =
+    (path("request-otp" / Segment) & post) {
     case "manager" =>
       entity(as[String]) { phone =>
         complete {

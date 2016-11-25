@@ -11,15 +11,12 @@ import info.whereismyfood.models.user.Roles.RoleID
 
 object APIUser extends GenericUserTrait[APIUser]{
   override def role: RoleID = Roles.api.order.all
-
   override def of(creds: Creds) = APIUser(creds)
-
   override def isAuthorized(user: GenericUser): Boolean = {
     (user.role & role) != 0
   }
-
   def jobInBusiness: Business.JobInBusiness = Business._apiers
-
+  override protected def userActorFactory = None
 }
 
 final case class APIUser(private val creds: Creds) extends GenericUser(creds){

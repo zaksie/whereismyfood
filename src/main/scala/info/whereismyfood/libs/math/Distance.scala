@@ -26,6 +26,8 @@ object LatLng extends DefaultJsonProtocol with SprayJsonSupport{
 
 }
 case class LatLng(lat: Double, lng: Double){
+  def isValid: Boolean = Math.abs(lat) <= 180 && Math.abs(lng) <= 90
+
   def this(latLng: GoogleLatLng) = this(latLng.lat, latLng.lng)
   def this(latLng: DSLatLng) = this(latLng.getLatitude, latLng.getLongitude)
   def toGoogleLatLng = new GoogleLatLng(lat, lng)

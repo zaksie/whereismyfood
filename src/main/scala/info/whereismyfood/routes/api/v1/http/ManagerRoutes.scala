@@ -77,7 +77,7 @@ object ManagerRoutes {
                 case Some(addCourier) =>
                   courierActionActorRef ? addCourier
                 case _ =>
-                  Future(false)
+                  Future.successful(false)
               }
             }
 

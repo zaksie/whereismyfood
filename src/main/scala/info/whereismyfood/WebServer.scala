@@ -64,12 +64,23 @@ case class WebServerClusterListener(port: Int) extends Actor with ActorLogging {
     import scala.concurrent.duration._
     context.system.scheduler.schedule(
       0 milliseconds,
-      1 second,
+      1 minute,
       businessScanner,
       ScanForBusinesses)(context.system.dispatcher)
+
+    startUpLazyObjects()
   }
   override def postStop(): Unit = cluster.unsubscribe(self)
 
+  def startUpLazyObjects(): Unit = {
+    import info.whereismyfood.models.user._
+
+    ClientUser.unlazy
+    CourierUser.unlazy
+    ManagerUser.unlazy
+    APIUser.unlazy
+    ChefUser.unlazy
+  }
   def receive = {
     case MemberUp(member) =>
       //log.info("Member is Up: {}", member.address)

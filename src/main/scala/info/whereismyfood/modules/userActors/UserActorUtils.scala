@@ -1,14 +1,12 @@
-package info.whereismyfood.libs.user
+package info.whereismyfood.modules.userActors
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator._
 import akka.pattern.ask
-import akka.util.Timeout
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.models.user.{Creds, GenericUser}
+import info.whereismyfood.models.user.GenericUser
 
 import scala.collection.mutable
-import scala.concurrent.duration._
 /**
   * Created by zakgoichman on 11/7/16.
   */
@@ -21,15 +19,13 @@ object UserActorUtils {
   case class ClientUpdates(topicToFollow: String)
 
   abstract class Subscriptions(val actor: ActorRef)(implicit val user: GenericUser, implicit val mediator: ActorRef) {
+    import ActorSystemContainer.Implicits._
     private val subscriptions: mutable.Set[String] = mutable.Set()
-    implicit val resolveTimeout = Timeout(30 seconds)
-    implicit val system = ActorSystemContainer.getSystem
-    implicit val materializer = ActorSystemContainer.getMaterializer
     implicit val executionContext = system.dispatcher
 
     def selfTopic: String
 
-    (mediator ? Subscribe(selfTopic, actor)).map{
+    mediator ? Subscribe(selfTopic, actor) map{
       case ack : SubscribeAck =>
         subscriptions += selfTopic
     }

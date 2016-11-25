@@ -2,7 +2,8 @@ package info.whereismyfood.aux
 
 import akka.actor.{ActorSystem, Props}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.{HttpResponse, StatusCode}
+import akka.http.scaladsl.model.{HttpResponse, StatusCode, StatusCodes}
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import info.whereismyfood.libs.LibActors
@@ -52,10 +53,13 @@ object ActorSystemContainer {
     instance.materializer
   }
 
-  object Implicits{
+  object Implicits {
     implicit val resolveTimeout = Timeout(60 seconds)
     implicit val system = ActorSystemContainer.getSystem
     implicit val materializer = ActorSystemContainer.getMaterializer
+
     implicit def Int2String(i: Int): ToResponseMarshallable = StatusCode.int2StatusCode(i)
+
+    implicit def Boolean2Route(b: Boolean): ToResponseMarshallable = if (b) StatusCode.int2StatusCode(200) else StatusCode.int2StatusCode(403)
   }
 }

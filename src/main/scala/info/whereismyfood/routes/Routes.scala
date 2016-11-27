@@ -6,7 +6,7 @@ import ch.megard.akka.http.cors.CorsDirectives._
 import ch.megard.akka.http.cors.{CorsDirectives, CorsSettings}
 import info.whereismyfood.routes.api.v1.ApiV1Router
 import info.whereismyfood.routes.auth.AuthRouter
-
+import info.whereismyfood.aux.ActorSystemContainer.Implicits.Int2String
 import scala.collection.immutable
 
 /**
@@ -21,12 +21,14 @@ object Routes {
 
   def routes = handleRejections(CorsDirectives.corsRejectionHandler) {
     cors(settings) {
-        pathEndOrSingleSlash {
-          complete("Welcome to Yummlet API v.02")
-        } ~
+          welcome ~
+          healthCheck ~
           AuthRouter.routes ~
           ApiV1Router.routes
     }
   }
+
+  def welcome = pathEndOrSingleSlash {complete("Welcome to Yummlet API v.02")}
+  def healthCheck = path("__health_check") {complete(200)}
 }
 

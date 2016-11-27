@@ -22,7 +22,7 @@ object Routes {
   def routes = handleRejections(CorsDirectives.corsRejectionHandler) {
     cors(settings) {
         pathEndOrSingleSlash {
-          complete("Welcome to Yummlet API")
+          complete("Welcome to Yummlet API v.02")
         } ~
           AuthRouter.routes ~
           ApiV1Router.routes

@@ -3,14 +3,15 @@ package info.whereismyfood.routes.auth
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.models.user._
+import info.whereismyfood.modules.user._
+import info.whereismyfood.modules.user._
 
 /**
   * Created by zakgoichman on 10/23/16.
   */
 object Login extends Directives with AuthenticationHandler {
   import ActorSystemContainer.Implicits._
-  import info.whereismyfood.models.user.CredsJsonSupport._
+  import info.whereismyfood.modules.user.CredsJsonSupport._
 
   private def success(user: GenericUser) = {
     val encodedToken = createToken(user)

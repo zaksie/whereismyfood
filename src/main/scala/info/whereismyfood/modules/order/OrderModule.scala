@@ -4,15 +4,12 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.cluster.singleton.{ClusterSingletonProxy, ClusterSingletonProxySettings}
-import akka.util.Timeout
-import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.aux.MyConfig.{ActorNames, Topics}
-import info.whereismyfood.libs.geo.GeoMySQLInterface
-import info.whereismyfood.models.order.{Order, Orders, ProcessedOrder}
-import info.whereismyfood.modules.business.{BusinessSingleton, OnOrderMarkChange}
-import info.whereismyfood.modules.userActors.{AddProcessedOrders, DeleteProcessedOrder, ModifyProcessedOrders, OpProcessedOrders}
+import ProcessedOrder.OrderStatuses
+import info.whereismyfood.modules.business.{BusinessSingleton, OnOrderMarkChange, ReadyToShipOrders}
+import info.whereismyfood.modules.geo.GeoMySQLInterface
+import info.whereismyfood.modules.user.{AddProcessedOrders, DeleteProcessedOrder, ModifyProcessedOrders, OpProcessedOrders}
 
-import scala.concurrent.duration._
 import scala.util.Try
 
 
@@ -21,16 +18,12 @@ import scala.util.Try
   */
 
 object OrderModule {
-
-  implicit val resolveTimeout = Timeout(60 seconds)
-  implicit val system = ActorSystemContainer.getSystem
-  implicit val materializer = ActorSystemContainer.getMaterializer
-
   case class AddOrders(orders: Orders)
   case class ModifyOrders(orders: Orders)
   case class DeleteOrders(businessId: Long, orderId: String)
   case class MarkOrdersReady(businessId: Long, orderId: String, mark: Boolean)
-  case class GetOrders(businessId: Long)
+  case class GetOpenOrders(businessId: Long)
+  case class GetEnrouteOrders(businessId: Long)
 
   def props = Props[OrderActor]
 
@@ -46,8 +39,11 @@ class OrderActor extends Actor with ActorLogging {
   import OrderModule._
 
   override def receive: Receive = {
-    case GetOrders(businessId) =>
-      sender ! ProcessedOrder.retrieveAllActive(businessId)
+    case GetOpenOrders(businessId) =>
+      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isOpen)
+    case GetEnrouteOrders(businessId) =>
+      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isEnroute)
+
     case AddOrders(orders) =>
       sender ! addOrders(orders)
     case ModifyOrders(orders) =>
@@ -60,11 +56,9 @@ class OrderActor extends Actor with ActorLogging {
 
   def markOrder(x: MarkOrdersReady): Boolean = {
     // This is the only case that requires notifying route planner
-    implicit val name = BusinessSingleton.getName(x.businessId)
     ProcessedOrder.mark(x.businessId, x.orderId, x.mark) match {
       case true =>
-        notifyRoutePlanner
-        true
+        notifyRoutePlanner(x.businessId)
       case _ => false
     }
   }
@@ -107,7 +101,7 @@ class OrderActor extends Actor with ActorLogging {
   }
 
   def saveProcessedOrders(orders: Seq[ProcessedOrder])(implicit businessId: Long): Boolean = {
-    ProcessedOrder.save(businessId, orders: _*)
+    ProcessedOrder.save(orders: _*)
   }
 
   def saveLocation(orders:Seq[ProcessedOrder]): Unit = {
@@ -118,17 +112,18 @@ class OrderActor extends Actor with ActorLogging {
     }
   }
 
-  def notifyRoutePlanner(implicit name: String): Boolean = {
+  def notifyRoutePlanner(businessId: Long): Boolean = {
     Try {
+      val name = BusinessSingleton.getName(businessId)
+      val path = BusinessSingleton.getPath(businessId)
       singletonProxyMap.get(name) match {
         case Some(aref) =>
           aref ! OnOrderMarkChange
         case _ =>
           val aref = context.actorOf(
             ClusterSingletonProxy.props(
-              singletonManagerPath = ActorNames.Paths.businessManager + name,
-              settings = ClusterSingletonProxySettings(context.system)),
-            name = name + "-proxy")
+              singletonManagerPath = path,
+              settings = ClusterSingletonProxySettings(context.system)), name + "-proxy")
 
           singletonProxyMap.put(name, aref)
           aref ! OnOrderMarkChange

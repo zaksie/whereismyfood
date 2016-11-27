@@ -1,9 +1,9 @@
-package info.whereismyfood.models.user
+package info.whereismyfood.modules.user
 
 import com.google.cloud.datastore.FullEntity.Builder
 import com.google.cloud.datastore.{Entity, Key}
-import info.whereismyfood.models.business.Business
-import info.whereismyfood.models.user.Roles.RoleID
+import info.whereismyfood.modules.business.Business
+import info.whereismyfood.modules.user.Roles.RoleID
 
 /**
   * Created by zakgoichman on 11/18/16.
@@ -26,6 +26,7 @@ object ManagerUser extends GenericUserTrait[ManagerUser]{
 
 final case class ManagerUser(private val creds: Creds)
   extends GenericUser(creds){
+  def jobInBusiness: Business.JobInBusiness = ManagerUser.jobInBusiness
 
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
 

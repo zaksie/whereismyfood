@@ -1,11 +1,9 @@
-package info.whereismyfood.models.user
+package info.whereismyfood.modules.user
 
-import akka.actor.ActorRef
 import com.google.cloud.datastore.FullEntity.Builder
 import com.google.cloud.datastore.{Entity, Key}
-import info.whereismyfood.models.business.Business
-import info.whereismyfood.models.user.Roles.RoleID
-import info.whereismyfood.modules.userActors.{ClientUserActor}
+import info.whereismyfood.modules.business.Business
+import info.whereismyfood.modules.user.Roles.RoleID
 
 /**
   * Created by zakgoichman on 11/18/16.
@@ -21,6 +19,7 @@ object ClientUser extends GenericUserTrait[ClientUser]{
 
 final case class ClientUser(private val creds: Creds)
   extends GenericUser(creds){
+  def jobInBusiness: Business.JobInBusiness = ClientUser.jobInBusiness
 
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
 

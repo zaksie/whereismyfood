@@ -1,4 +1,4 @@
-package info.whereismyfood.models.order
+package info.whereismyfood.modules.order
 
 import java.time.ZonedDateTime
 
@@ -25,7 +25,7 @@ case class Orders(businessId: Long, orders: Seq[Order]) extends OrderCommon{
     orders.find(x=>x.client.phone.isEmpty || x.client.geoaddress.isEmpty) match {
       case Some(faultyOrder) =>
         if(faultyOrder.client.phone.isEmpty) OrderError(s"Phone field missing for order ${faultyOrder.id}")
-        else OrderError(s"Address field either missing or couldn't be geoencoded for order ${faultyOrder.id}")
+        else OrderError(s"Address field either missing or couldn't be geocoded for order ${faultyOrder.id}")
       case _ =>
         OrderError.OK
     }

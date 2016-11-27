@@ -2,25 +2,15 @@ package info.whereismyfood.libs.geo
 
 import akka.actor.Status.Failure
 import akka.actor.{Actor, Props}
-import com.google.maps.DirectionsApi.RouteRestriction
 import com.google.maps.model.{DistanceMatrix, DistanceMatrixElementStatus, TravelMode, LatLng => GoogleLatLng}
-import com.google.maps.{DistanceMatrixApi, GeoApiContext}
-import info.whereismyfood.aux.MyConfig
-import info.whereismyfood.libs.math.{DistanceEx, LatLng, DistanceMatrix => MyDistanceMatrix}
-
-import scala.util.matching.Regex
+import com.google.maps.DistanceMatrixApi
+import info.whereismyfood.modules.geo
+import info.whereismyfood.modules.geo.{Address, DistanceEx, LatLng,  DistanceMatrix => MyDistanceMatrix}
 
 
 /**
   * Created by zakgoichman on 10/21/16.
   */
-case class DistanceMatrixRequestParams(start: LatLng, destinations: Set[LatLng]){
-  val coordInputPattern = new Regex("""\((.*?)\)""")
-  def getLocations: Seq[LatLng] = {
-    start +: destinations.toSeq //TODO: The conversion to Set is like running distinct?
-  }
-}
-
 object DistanceMatrixActor {
   def props = Props[DistanceMatrixActor]
 }
@@ -44,18 +34,17 @@ class DistanceMatrixActor extends Actor {
     case _ => sender ! Failure(new Exception("Incorrect input to DistanceMatrixActor"))
   }
 
-  def generateDistanceMatrix(from: Seq[GoogleLatLng], to: Seq[GoogleLatLng]):MyDistanceMatrix = {
+  def generateDistanceMatrix(from: Seq[GoogleLatLng], to: Seq[GoogleLatLng]):geo.DistanceMatrix = {
     val result = DistanceMatrixApi.newRequest(geoApiContext)
       .units(com.google.maps.model.Unit.METRIC)
       .origins(from:_*)
       .destinations(to:_*)
-      .mode(TravelMode.DRIVING)
-      .avoid(RouteRestriction.TOLLS)
+      .mode(TravelMode.WALKING)
       .await()
     parseResults(result, from.zipWithIndex, to.zipWithIndex)
   }
-  def parseResults(result: DistanceMatrix, from: Seq[(GoogleLatLng, Int)], to: Seq[(GoogleLatLng, Int)]): MyDistanceMatrix = {
-    new MyDistanceMatrix(from.flatMap { f =>
+  def parseResults(result: DistanceMatrix, from: Seq[(GoogleLatLng, Int)], to: Seq[(GoogleLatLng, Int)]): geo.DistanceMatrix = {
+    new geo.DistanceMatrix(from.flatMap { f =>
       to.flatMap { t =>
         val data = result.rows(f._2).elements(t._2)
         if (data.status != DistanceMatrixElementStatus.OK || f._1 == t._1) None

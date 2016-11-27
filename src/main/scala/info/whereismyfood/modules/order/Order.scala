@@ -1,9 +1,9 @@
-package info.whereismyfood.models.order
+package info.whereismyfood.modules.order
 
 import java.time.{ZoneOffset, ZonedDateTime}
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import info.whereismyfood.models.user.Creds
+import info.whereismyfood.modules.user.Creds
 import spray.json.DefaultJsonProtocol
 
 
@@ -15,8 +15,8 @@ case class Order(id: String, client: Creds, contents: Seq[OrderItem]) {
 }
 
 object OrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
-  import info.whereismyfood.models.user.CredsJsonSupport._
+  import info.whereismyfood.modules.user.CredsJsonSupport._
   implicit val priceFormat = jsonFormat3(Price)
-  implicit val itemFormat = jsonFormat(OrderItem, "name","image", "description", "notes", "price", "ready")
+  implicit val itemFormat = jsonFormat(OrderItem, "name","image", "description", "notes", "price")
   implicit val orderFormat = jsonFormat(Order.apply, "id", "client", "contents")
 }

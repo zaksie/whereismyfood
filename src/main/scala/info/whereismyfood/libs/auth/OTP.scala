@@ -1,7 +1,7 @@
 package info.whereismyfood.libs.auth
 
 import info.whereismyfood.libs.database.{Databases, KVStorable}
-import info.whereismyfood.models.user.Creds
+import info.whereismyfood.modules.user.Creds
 
 import scala.concurrent.Await
 import scala.concurrent.duration._

@@ -1,7 +1,7 @@
 package info.whereismyfood.libs.auth
 
 import com.google.gson.Gson
-import info.whereismyfood.models.user.GenericUser
+import info.whereismyfood.modules.user.GenericUser
 
 /**
   * Created by zakgoichman on 11/20/16.

@@ -4,8 +4,9 @@ import akka.actor.{Actor, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.util.Timeout
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.models.business.Business
-import info.whereismyfood.models.user.{CourierJson, CourierUser, Creds}
+import info.whereismyfood.modules.user.{CourierJson, Creds}
+import info.whereismyfood.modules.business.Business
+import info.whereismyfood.modules.user.{CourierJson, CourierUser, Creds}
 
 import scala.concurrent.duration._
 

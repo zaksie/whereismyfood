@@ -7,8 +7,9 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.modules.userActors.UserActorUtils._
-import info.whereismyfood.models.user._
+import info.whereismyfood.modules.user.UserActorUtils._
+import info.whereismyfood.modules.user._
+import info.whereismyfood.modules.user.{Creds, UserRouter}
 
 /**
   * Created by zakgoichman on 11/1/16.

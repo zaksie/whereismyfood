@@ -8,9 +8,10 @@ import akka.pattern.ask
 import akka.stream.scaladsl.StreamConverters
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.libs.storage.GoogleStorageClient
-import info.whereismyfood.models.business.{AdminUserAssets, Business}
-import info.whereismyfood.models.user.{CourierJson, Creds, Roles}
+import info.whereismyfood.modules.user.{Creds, Roles}
+import info.whereismyfood.modules.business.{AdminUserAssets, Business}
 import info.whereismyfood.modules.courier.CourierModule.AddCourier
+import info.whereismyfood.modules.user.{CourierJson, Creds, Roles}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{Await, Future}
@@ -35,7 +36,7 @@ object ManagerRoutes {
       path("business" / Segment){
         case "all" => AdminUserAssets.getAllFor(creds) match{
           case Some(assets) =>
-            import info.whereismyfood.models.business.AdminUserAssetsJsonSupport._
+            import info.whereismyfood.modules.business.AdminUserAssetsJsonSupport._
             complete(assets)
           case _ => complete(400)
         }

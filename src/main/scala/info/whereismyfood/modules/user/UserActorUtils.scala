@@ -1,10 +1,9 @@
-package info.whereismyfood.modules.userActors
+package info.whereismyfood.modules.user
 
 import akka.actor.ActorRef
 import akka.cluster.pubsub.DistributedPubSubMediator._
 import akka.pattern.ask
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.models.user.GenericUser
 
 import scala.collection.mutable
 /**

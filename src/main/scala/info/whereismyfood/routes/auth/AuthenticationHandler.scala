@@ -3,14 +3,13 @@ package info.whereismyfood.routes.auth
 import java.util.concurrent.TimeUnit
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import akka.http.scaladsl.model.{ContentType, HttpEntity, HttpRequest, RequestEntity}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives.FutureDirectives
 import akka.http.scaladsl.server.directives.FutureDirectives.{onComplete => _, _}
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import info.whereismyfood.models.user._
+import info.whereismyfood.modules.user.{Creds, GenericUser, Roles}
 import io.igl.jwt.{Aud, _}
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, JsNumber, JsString, JsValue}
@@ -100,7 +99,7 @@ trait AuthenticationHandler {
           case Left(x) => Roles(x)
           case Right(x) => Roles(x)
         }
-        val creds = Creds(phone = phone, __deviceId = Some(uuid))
+        val creds = Creds(phone = phone, uuid = Some(uuid))
         //This is separate from creds because I don't want to receive it from the user
         creds.setRole(role)
         creds.setBusinesses(busid)

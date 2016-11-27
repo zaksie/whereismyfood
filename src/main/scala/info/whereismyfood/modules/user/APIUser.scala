@@ -1,9 +1,9 @@
-package info.whereismyfood.models.user
+package info.whereismyfood.modules.user
 
-import com.google.cloud.datastore.{Entity, Key}
 import com.google.cloud.datastore.FullEntity.Builder
-import info.whereismyfood.models.business.Business
-import info.whereismyfood.models.user.Roles.RoleID
+import com.google.cloud.datastore.{Entity, Key}
+import info.whereismyfood.modules.business.Business
+import info.whereismyfood.modules.user.Roles.RoleID
 
 /**
   * Created by zakgoichman on 11/18/16.
@@ -20,6 +20,7 @@ object APIUser extends GenericUserTrait[APIUser]{
 }
 
 final case class APIUser(private val creds: Creds) extends GenericUser(creds){
+  def jobInBusiness: Business.JobInBusiness = APIUser.jobInBusiness
 
   override def getOTPBody(code: String*): String = {
     s"Yummlet code for API user: $code"

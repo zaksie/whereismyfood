@@ -1,4 +1,4 @@
-package info.whereismyfood.models.user
+package info.whereismyfood.modules.user
 
 import scala.util.Try
 

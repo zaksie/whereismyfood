@@ -7,7 +7,7 @@ import com.graphhopper.jsprit.core.problem.{Location, VehicleRoutingProblem}
 import com.graphhopper.jsprit.core.reporting.SolutionPrinter
 import com.graphhopper.jsprit.core.reporting.SolutionPrinter.Print
 import com.graphhopper.jsprit.core.util.{Solutions, VehicleRoutingTransportCostsMatrix}
-import info.whereismyfood.libs.math.{DistanceMatrix, LatLng}
+import info.whereismyfood.modules.geo.DistanceMatrix
 
 import scala.collection.JavaConverters._
 
@@ -16,10 +16,11 @@ import scala.collection.JavaConverters._
   */
 
 
-class JspritCVRP(orders: Seq[Order], fleet: Fleet, startPos: LatLng, distanceMatrix: DistanceMatrix) {
+class JspritCVRP(cvrpParams: CVRPParams) {
+  import cvrpParams._
   private val services: Seq[Service] = buildOrders()
   private val vehicles: Seq[VehicleImpl] = buildFleet()
-  private val routingCostMatrix = readDistances(distanceMatrix)
+  private val routingCostMatrix = readDistances(distanceMatrix.get)
 
   private def buildFleet(): Seq[VehicleImpl] = {
     /*
@@ -34,14 +35,14 @@ class JspritCVRP(orders: Seq[Order], fleet: Fleet, startPos: LatLng, distanceMat
      */
     for {i <- 1 to fleet.size}
       yield VehicleImpl.Builder
-        .newInstance("vehicle")
-        .setStartLocation(Location.newInstance(startPos.geoid))
+        .newInstance("vehicle-" + i)
+        .setStartLocation(Location.newInstance(depot.geoid))
         .setType(vehicleType).build()
 
   }
 
   private def buildOrders(): Seq[Service] = {
-    orders.map { order =>
+    orders.toSeq.map { order =>
       Service.Builder.newInstance(order.geoid)
         .addSizeDimension(0, order.demand)
         .setLocation(Location.newInstance(order.geoid)).build

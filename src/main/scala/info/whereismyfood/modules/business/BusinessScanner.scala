@@ -3,7 +3,6 @@ package info.whereismyfood.modules.business
 import akka.actor.{Actor, ActorLogging, PoisonPill, Props}
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings}
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.models.business.Business
 
 import scala.util.{Failure, Success}
 
@@ -26,14 +25,13 @@ class BusinessScanner extends Actor with ActorLogging{
         val name = BusinessSingleton.getName(business.id)
         context.actorSelection(name).resolveOne().onFailure{
           case _ =>
-            println(context.actorOf(ClusterSingletonManager.props(
+            context.actorOf(ClusterSingletonManager.props(
               singletonProps = BusinessSingleton.props(business),
               terminationMessage = PoisonPill,
               settings = ClusterSingletonManagerSettings(system)),
-              name).path)
+              name)
         }
       }
     case x => println(x)
   }
-
 }

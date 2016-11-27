@@ -8,6 +8,7 @@ import akka.http.scaladsl.Http
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.aux.MyConfig.ActorNames
 import info.whereismyfood.modules.business.{BusinessScanner, ScanForBusinesses}
+import info.whereismyfood.modules.user._
 import info.whereismyfood.routes.Routes
 import org.slf4j.LoggerFactory
 
@@ -73,7 +74,7 @@ case class WebServerClusterListener(port: Int) extends Actor with ActorLogging {
   override def postStop(): Unit = cluster.unsubscribe(self)
 
   def startUpLazyObjects(): Unit = {
-    import info.whereismyfood.models.user._
+    import info.whereismyfood.modules.user._
 
     ClientUser.unlazy
     CourierUser.unlazy

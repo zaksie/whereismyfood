@@ -1,23 +1,27 @@
-package info.whereismyfood.models.user
+package info.whereismyfood.modules.user
+
+import java.time.{ZoneOffset, ZonedDateTime}
 
 import akka.actor.{ActorRef, Props}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.HttpResponse
 import com.google.cloud.datastore._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
+import info.whereismyfood.aux.MyConfig
+import info.whereismyfood.aux.MyConfig.Vars
 import info.whereismyfood.libs.auth.{OTP, VerificationResult}
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable}
-import info.whereismyfood.libs.geo.Address
-import info.whereismyfood.models.business.Business
-import info.whereismyfood.models.business.Business.JobInBusiness
-import info.whereismyfood.models.user.Roles.RoleID
+import info.whereismyfood.modules.auth.RequestOTP
+import info.whereismyfood.modules.business.Business
+import info.whereismyfood.modules.business.Business.JobInBusiness
+import info.whereismyfood.modules.geo
+import info.whereismyfood.modules.geo.{Address, Distance, Geolocation}
+import info.whereismyfood.modules.user.Roles.RoleID
 import info.whereismyfood.routes.auth.Login
 import org.slf4j.LoggerFactory
 
-import scala.util.Try
-import scala.collection.JavaConverters._
 import scala.concurrent.Await
-import info.whereismyfood.modules.auth.RequestOTP
+import scala.util.Try
 /**
   * Created by zakgoichman on 11/20/16.
   */
@@ -30,6 +34,7 @@ private object FieldNames {
   val _address = "address"
   val _image = "image"
   val _verified = "verified"
+  val _vehicleType = "vehicleType"
 }
 
 trait HasPropsFunc[T <: GenericUser] {
@@ -74,6 +79,21 @@ trait GenericUserTrait[T <: GenericUser]{
     }
   }
 
+  def getAllNear(here: geo.LatLng, ids: Set[String]): Seq[CourierUser] = {
+    val recent = ZonedDateTime.now(ZoneOffset.UTC).minusMinutes(Vars.recent_minutes).toEpochSecond
+    val radius = MyConfig.Vars.nearby_meter
+    Geolocation.retrieve(jobInBusiness, ids.toSeq:_*)
+        .filter(x=>Distance.asTheCrowFlies(x.coords.toLatLng, here) < radius)
+        .filter(_.timestamp > recent).flatMap { x =>
+      Try {
+        CourierUser.find(x.key).get.setGeolocation(x)
+      }.toOption
+    }
+
+    //TODO: remove. here just for testing
+    Seq(CourierUser.find("482394").get, CourierUser.find("world").get)
+  }
+
   def find(phone: String): Option[T] = {
     getFromDatastore(phone) match {
       case Some(account) if isAuthorized(account) =>
@@ -108,7 +128,9 @@ trait GenericUserTrait[T <: GenericUser]{
 
       creds.setVerified(entity.getBoolean(_verified))
       creds.setImage(Option(entity.getString(_image)))
-
+      Try {
+        creds.setVehicleType(Option(entity.getString(_vehicleType)))
+      }
       creds.setAddress{
         Try{
           new Address(entity.getEntity(_address))
@@ -147,6 +169,8 @@ abstract class GenericUser(private val creds: Creds)
   extends DatastoreStorable {
 
   val USER_KIND = "User"
+  protected var __geolocation: Option[Geolocation] = None
+  def geolocation: Option[Geolocation] = __geolocation
 
   lazy val addressOptionProcessed = {
     if(creds.geoaddress.isDefined) creds.geoaddress
@@ -154,6 +178,7 @@ abstract class GenericUser(private val creds: Creds)
   }
   def jwt = Login.createToken(this)
 
+  def jobInBusiness: Business.JobInBusiness
   def address = addressOptionProcessed
   def phone: String = creds.phone
   def name: Option[String] = creds.name
@@ -163,9 +188,10 @@ abstract class GenericUser(private val creds: Creds)
   def businessIds: Set[Long] = creds.businessIds
   def verified: Boolean = creds.verified
   def image: Option[String] = creds.image
+  def vehicleType: Option[String] = creds.vehicleType
 
   def verify(apiKey: APIKey): this.type = {
-    creds.setDeviceId(apiKey.uuid)
+    creds.setDeviceIdIfNone(apiKey.uuid)
     creds.setVerified(true)
     this
   }
@@ -197,13 +223,14 @@ abstract class GenericUser(private val creds: Creds)
 
     import FieldNames._
     val entity = FullEntity.newBuilder(key)
-      .set(_deviceId, deviceId.getOrElse(""))
-      .set(_phone, phone)
-      .set(_email, email.getOrElse(""))
-      .set(_name, name.getOrElse(""))
-      .set(_image, image.getOrElse(""))
-      .set(_role, role)
-      .set(_verified, verified)
+        .set(_deviceId, deviceId.getOrElse(""))
+        .set(_phone, phone)
+        .set(_email, email.getOrElse(""))
+        .set(_name, name.getOrElse(""))
+        .set(_image, image.getOrElse(""))
+        .set(_role, role)
+        .set(_verified, verified)
+        .set(_vehicleType, vehicleType.getOrElse(""))
 
     val addr = address match {
       case Some(a) => a
@@ -254,4 +281,6 @@ abstract class GenericUser(private val creds: Creds)
   def extendFromDatastore(entity: Entity): this.type
 
   def asDatastoreAncestor: PathElement = PathElement.of(USER_KIND, phone)
+
+  def setGeolocation(geolocation: Geolocation): this.type = {__geolocation = Option(geolocation); this}
 }

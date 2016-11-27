@@ -1,9 +1,10 @@
-package info.whereismyfood.models.user
+package info.whereismyfood.modules.user
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import info.whereismyfood.libs.geo.Address
-import info.whereismyfood.models.user.Roles.RoleID
-import info.whereismyfood.models.vehicle.VehicleTypes.VehicleType
+import info.whereismyfood.modules.courier.VehicleTypes
+import info.whereismyfood.modules.courier.VehicleTypes.VehicleType
+import info.whereismyfood.modules.geo.Address
+import info.whereismyfood.modules.user.Roles.RoleID
 import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol
 
@@ -21,7 +22,7 @@ final case class Creds(phone: String, uuid: Option[String] = None, var otp: Opti
                        name: Option[String] = None, email: Option[String] = None, address: Option[String] = None){
 
   private var __deviceId: Option[String] = None
-  def setDeviceId(deviceId: String) = __deviceId = Some(deviceId)
+  def setDeviceIdIfNone(deviceId: String) = __deviceId = Some(deviceId)
   def deviceId: Option[String] = uuid.orElse(__deviceId)
 
   private var __role: RoleID = Roles.unknown
@@ -51,8 +52,11 @@ final case class Creds(phone: String, uuid: Option[String] = None, var otp: Opti
   def setImage(image: Option[String]): Creds = {this.__image = image;this}
   def image = __image
 
-  private var __vehicleType: Option[VehicleType] = None
-  def setVehicleType(vehicleType: Option[VehicleType]): Creds = {this.__vehicleType = vehicleType; this}
+  private var __vehicleType: Option[VehicleType] = Some(VehicleTypes.default)
+  def setVehicleType(vehicleType: Option[VehicleType]): Creds = {
+    this.__vehicleType = vehicleType
+    this
+  }
   def vehicleType = __vehicleType
 
   def addBusiness(businessId: RoleID) = {__businessIds += businessId; this}

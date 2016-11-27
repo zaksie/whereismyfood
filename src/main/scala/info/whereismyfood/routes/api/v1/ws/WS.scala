@@ -1,6 +1,6 @@
 package info.whereismyfood.routes.api.v1.ws
 
-import info.whereismyfood.models.user.Creds
+import info.whereismyfood.modules.user.Creds
 
 /**
   * Created by zakgoichman on 10/20/16.

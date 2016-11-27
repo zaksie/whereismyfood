@@ -1,16 +1,12 @@
-package info.whereismyfood.models.user
+package info.whereismyfood.modules.user
 
-import akka.actor.ActorRef
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import com.google.cloud.datastore.FullEntity.Builder
 import com.google.cloud.datastore.{Entity, Key}
-import info.whereismyfood.libs.geo.Address
-import info.whereismyfood.models.business.Business
-import info.whereismyfood.models.order.ProcessedOrderJsonSupport._
-import info.whereismyfood.models.user.Roles.RoleID
-import info.whereismyfood.models.vehicle.VehicleTypes
-import info.whereismyfood.models.vehicle.VehicleTypes.VehicleType
-import info.whereismyfood.modules.userActors.CourierUserActor
+import info.whereismyfood.modules.business.Business
+import info.whereismyfood.modules.courier.VehicleTypes
+import info.whereismyfood.modules.courier.VehicleTypes.VehicleType
+import info.whereismyfood.modules.user.Roles.RoleID
 import spray.json.DefaultJsonProtocol
 
 import scala.collection.JavaConverters._
@@ -45,16 +41,17 @@ object CourierUser extends GenericUserTrait[CourierUser]{
 }
 
 final case class CourierUser(private val creds: Creds) extends GenericUser(creds){
+  def jobInBusiness: Business.JobInBusiness = CourierUser.jobInBusiness
   def toCourierJson: CourierJson = CourierJson(name, phone, image, vehicleType)
+  def toCourierJsonOption: Option[CourierJson] = Some(toCourierJson)
 
-  def vehicleType = creds.vehicleType
   override def getOTPBody(code: String*): String = ???
 
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
   override def extendFromDatastore(entity: Entity): this.type = this
 }
 
-final case class CourierJson(name: Option[String], phone: String, image: Option[String], vehicleType: Option[VehicleType] = Some(VehicleTypes.L))
+final case class CourierJson(name: Option[String], phone: String, image: Option[String], vehicleType: Option[VehicleType] = Some(VehicleTypes.default))
 
 object CourierJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   implicit val courierJsonFormatter = jsonFormat(CourierJson.apply, "name", "phone", "image", "vehicleType")

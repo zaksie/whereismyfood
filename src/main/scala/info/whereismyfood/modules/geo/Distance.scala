@@ -1,29 +1,32 @@
-package info.whereismyfood.libs.math
+package info.whereismyfood.modules.geo
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.util.ByteString
 import boopickle.Default._
-import com.google.maps.model.{LatLng => GoogleLatLng}
 import com.google.cloud.datastore.{LatLng => DSLatLng}
+import com.google.maps.model.{LatLng => GoogleLatLng}
 import info.whereismyfood.libs.database.KVStorable
-import info.whereismyfood.libs.geo.{Address, GeoMySQLInterface}
 import org.slf4j.LoggerFactory
 import redis.ByteStringFormatter
 import spray.json.DefaultJsonProtocol
 
+import scala.util.Try
+
 /**
   * Created by zakgoichman on 11/1/16.
   */
-//TODO: rewrite with cloudsql instead of datastore
-
-
 case class DistanceParams(meters: Long, seconds: Long)
 
 object LatLng extends DefaultJsonProtocol with SprayJsonSupport{
   def apply(geoPt: GoogleLatLng) = new LatLng(geoPt)
   def apply(dsPt: DSLatLng) = new LatLng(dsPt)
-  implicit val credsFormatter = jsonFormat(LatLng.apply, "lat", "lng")
 
+  def fromGeoId(id: String): Option[LatLng] = Try {
+    val coords = id.split(',').map(_.toDouble)
+    LatLng(coords(0), coords(1))
+  }.toOption
+
+  implicit val credsFormatter = jsonFormat(LatLng.apply, "lat", "lng")
 }
 case class LatLng(lat: Double, lng: Double){
   def isValid: Boolean = Math.abs(lat) <= 180 && Math.abs(lng) <= 90
@@ -52,6 +55,16 @@ object Distance {
 
   def getHash(from: LatLng, to: LatLng): String = {
     from.toString + ":" + to.toString
+  }
+
+  def asTheCrowFlies(p1: LatLng, p2: LatLng): Double = {
+    def deg2rad(deg: Double): Double = deg * Math.PI / 180.0
+    def rad2deg(rad: Double): Double = rad * 180 / Math.PI
+
+    val coeff = 1.609344 * 60 * 1.1515
+    val theta = p1.lng - p2.lng
+    val x = Math.sin(deg2rad(p1.lat)) * Math.sin(deg2rad(p2.lat)) + Math.cos(deg2rad(p1.lat)) * Math.cos(deg2rad(p2.lat)) * Math.cos(deg2rad(theta))
+    (rad2deg _ compose Math.acos)(x)
   }
 }
 case class Distance(from: LatLng, to: LatLng, distance_meter: Long, distance_sec: Long) extends KVStorable{

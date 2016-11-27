@@ -1,5 +1,7 @@
 package info.whereismyfood.libs.math
 
+import info.whereismyfood.modules.geo.LatLng
+
 /**
   * Created by zakgoichman on 10/25/16.
   */

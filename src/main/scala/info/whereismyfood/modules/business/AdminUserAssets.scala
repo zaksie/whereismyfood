@@ -1,6 +1,6 @@
-package info.whereismyfood.models.business
+package info.whereismyfood.modules.business
 
-import info.whereismyfood.models.user.{CourierJson, CourierUser, Creds}
+import info.whereismyfood.modules.user.{CourierJson, CourierUser, Creds}
 
 /**
   * Created by zakgoichman on 11/16/16.
@@ -22,7 +22,7 @@ object AdminUserAssets {
 case class AdminUserAssets(businesses: Set[Business], couriers: Set[CourierJson])
 
 object AdminUserAssetsJsonSupport extends BusinessJsonSupport {
-  import info.whereismyfood.models.user.CourierJsonSupport._
+  import info.whereismyfood.modules.user.CourierJsonSupport._
   implicit val formatter1 = jsonFormat2(AdminUserAssets.apply)
 }
 

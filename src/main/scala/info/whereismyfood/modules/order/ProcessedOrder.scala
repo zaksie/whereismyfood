@@ -1,36 +1,55 @@
-package info.whereismyfood.models.order
+package info.whereismyfood.modules.order
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.util.ByteString
 import boopickle.Default._
-import com.google.cloud.datastore.{EntityValue, FullEntity}
+import com.google.cloud.datastore.{Entity, EntityValue, FullEntity}
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable, KVStorable}
-import info.whereismyfood.models.geo.DeliveryRoute
-import info.whereismyfood.models.user.{CourierJson, Creds}
+import info.whereismyfood.modules.geo.DeliveryRoute
+import info.whereismyfood.modules.order.ProcessedOrder.{OrderStatus, OrderStatuses}
+import info.whereismyfood.modules.user.{CourierJson, Creds}
 import org.slf4j.LoggerFactory
 import redis.ByteStringFormatter
 import spray.json.DefaultJsonProtocol
 
+import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Try
-import collection.JavaConverters._
 /**
   * Created by zakgoichman on 11/8/16.
   */
 
 object ProcessedOrder{
+  type OrderStatus = String
+
+  case object OrderStatuses {
+    def isReady(o: ProcessedOrder): Boolean = o.status == READY
+    def isEnroute(o: ProcessedOrder): Boolean = o.status == ENROUTE
+    def isOpen(o: ProcessedOrder): Boolean = o.status == PREPARING || o.status == READY
+    val PREPARING = "preparing"
+    val READY = "ready"
+    val ENROUTE = "enroute"
+    val DELIVERED = "delivered"
+  }
+  def groupByHaveAddress(orders: Set[ProcessedOrder]) = {
+    val grouped = orders.groupBy(_.client.geoaddress.isDefined)
+    (grouped.getOrElse(true, Set()), grouped.getOrElse(false, Set()))
+  }
+
   val log = LoggerFactory.getLogger(this.getClass)
 
   val kind = "ProcessedOrder"
   val _timestamp = "timestamp"
   val _businessId = "businessId"
   val _orderId = "orderId"
-  val _courier = "courier"
   val _items = "items"
   val _clientLatLng = "clientLatLng"
   val _clientPhone = "clientPhone"
+  val _status = "status"
+  val _courierPhone = "courierPhone"
+  val _route = "route"
 
   def of(order: Order)(implicit businessId: Long): ProcessedOrder = {
     ProcessedOrder(businessId, order.id, order.timestamp, order.client, order.contents)
@@ -81,9 +100,10 @@ object ProcessedOrder{
     }
   }
 
-  def save(businessId: Long, order: ProcessedOrder*): Boolean = {
-    //TODO: assuming businessIds == order.businessIds
-    Try {
+  def save(order: ProcessedOrder*): Boolean = {
+    val businessId = order.head.businessId
+    if(!(order forall(_.businessId == businessId))) false
+    else Try {
       val inmemoryIds = order.map{
         x=>(x.key, x)
       }
@@ -122,7 +142,7 @@ object ProcessedOrder{
   def mark(businessId: Long, orderId: String, ready: Boolean): Boolean ={
     retrieveSingle(businessId, orderId) match{
       case Some(order)=>
-        saveSingle(order.copy(ready = ready))
+        saveSingle(order.copyWithReady(ready))
       case _ => false
     }
   }
@@ -139,31 +159,42 @@ object ProcessedOrder{
 
 case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client: Creds, contents: Seq[OrderItem],
                           ready: Boolean = false, courier: Option[CourierJson] = None,
-                          route: Option[DeliveryRoute] = None) extends DatastoreStorable with KVStorable{
-  import ProcessedOrder._
+                          status: OrderStatus = OrderStatuses.PREPARING, route: Option[DeliveryRoute] = None)
+    extends DatastoreStorable with KVStorable{
+  def demand: Int = contents.size
 
+  import ProcessedOrder._
+  def geoid = client.geoaddress match {
+    case Some(addr) => addr.geoid
+  }
   override def asDatastoreEntity: Option[FullEntity[_]] = {
-    val key = datastore.newKeyFactory().setKind(kind).newKey()
-    val entity = FullEntity.newBuilder(key)
+    val key = datastore.newKeyFactory().setKind(kind).newKey(businessId + id)
+    val entity = Entity.newBuilder(key)
     entity.set(_orderId, id)
     entity.set(_timestamp, timestamp)
     entity.set(_businessId, businessId)
     entity.set(_clientPhone, client.phone)
     if(client.geoaddress.isDefined)
         entity.set(_clientLatLng, client.geoaddress.get.latLng.toDatastoreLatLng)
-    //TODO: add courier & route
     entity.set(_items, contents.map(x => new EntityValue(x.asDatastoreEntity.get)).asJava)
+
+    if(courier.isDefined)
+      entity.set(_courierPhone, courier.get.phone)
+    entity.set(_status, status)
+    entity.set(_route, route.getOrElse(DeliveryRoute.empty).polyline)
+
     Option(entity.build())
   }
 
   override def key: String = ProcessedOrder.getKey(businessId, id)
+  def copyWithReady(ready: Boolean): ProcessedOrder = this.copy(ready = ready)//, contents = contents.map(_.copy(ready = Some(ready))))
 }
 
 object ProcessedOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
-  import info.whereismyfood.models.user.CredsJsonSupport._
   import OrderJsonSupport._
-  import info.whereismyfood.models.geo.DeliveryRouteJsonSupport._
+  import info.whereismyfood.modules.geo.DeliveryRouteJsonSupport._
+  import info.whereismyfood.modules.user.CredsJsonSupport._
   implicit val courierJsonFormatter = jsonFormat(CourierJson.apply, "name", "phone", "image", "vehicleType")
   implicit val formatter = jsonFormat(ProcessedOrder.apply, "businessId", "id", "timestamp",
-    "client", "contents", "ready", "courier", "route")
+    "client", "contents", "ready", "courier", "status", "route")
 }

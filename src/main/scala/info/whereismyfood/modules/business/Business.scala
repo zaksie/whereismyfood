@@ -1,15 +1,13 @@
-package info.whereismyfood.models.business
+package info.whereismyfood.modules.business
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter
 import com.google.cloud.datastore._
 import info.whereismyfood.libs.database.DatastoreFetchable
-import info.whereismyfood.libs.geo.Address
-import info.whereismyfood.models.user.Creds
+import info.whereismyfood.modules.geo.Address
 import spray.json.DefaultJsonProtocol
 
-import collection.JavaConverters._
-import scala.util.Try
+import scala.collection.JavaConverters._
 
 /**
   * Created by zakgoichman on 11/11/16.

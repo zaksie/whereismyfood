@@ -1,5 +1,4 @@
-package info.whereismyfood.models.order
-
+package info.whereismyfood.modules.order
 
 import com.google.cloud.datastore._
 import info.whereismyfood.libs.database.{DatastoreStorable, KVStorable}
@@ -12,7 +11,7 @@ object OrderItemCompanion {
 }
 case class Price(humanReadable: String, value: Double, currency: String)
 case class OrderItem(name: String, image: String, description: String,
-                     notes: String, price: Price, ready: Boolean) extends DatastoreStorable with KVStorable{
+                     notes: String, price: Price) extends DatastoreStorable with KVStorable{
 
   import OrderItemCompanion._
   override def asDatastoreEntity: Option[FullEntity[_]] = {

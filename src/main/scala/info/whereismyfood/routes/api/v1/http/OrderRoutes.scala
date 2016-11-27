@@ -3,13 +3,14 @@ package info.whereismyfood.routes.api.v1.http
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.server.Directives._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import info.whereismyfood.models.order.{OrderError, OrderReady, Orders, ProcessedOrder}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import akka.pattern.ask
-import info.whereismyfood.models.user.{APIUser, Creds, Roles}
-import info.whereismyfood.modules.order.OrderModule.{AddOrders, DeleteOrders, GetOrders, MarkOrdersReady, ModifyOrders}
+import info.whereismyfood.modules.user.{Creds, Roles}
+import info.whereismyfood.modules.order.OrderModule._
+import info.whereismyfood.modules.order.{OrderError, OrderReady, Orders, ProcessedOrder}
+import info.whereismyfood.modules.user.{APIUser, Creds, Roles}
 import spray.json._
 
 /**
@@ -17,14 +18,14 @@ import spray.json._
   */
 object OrderRoutes {
 
-  import info.whereismyfood.models.order.OrdersJsonSupport._
+  import info.whereismyfood.modules.order.OrdersJsonSupport._
 
   val log = LoggerFactory.getLogger(this.getClass)
   val orderActorRef = Await.result(system.actorSelection("/user/modules/order").resolveOne(), resolveTimeout.duration)
 
   def routes(implicit creds: Creds) = {
     implicit val user = APIUser.of(creds)
-    import Roles.api.order.{add, modify, delete => delete_role, markReady, view}
+    import info.whereismyfood.modules.user.Roles.api.order.{add, modify, delete => delete_role, markReady, view}
     pathPrefix("orders") {
       pathEndOrSingleSlash {
         put {
@@ -65,12 +66,19 @@ object OrderRoutes {
               Roles.isauthorized(view, creds.businessIds.head) match {
                 case false => complete(403)
                 case true =>
-                  val res = Await.result(orderActorRef ? GetOrders(creds.businessIds.head),
-                    resolveTimeout.duration).asInstanceOf[Seq[ProcessedOrder]]
-                  import info.whereismyfood.models.order.ProcessedOrderJsonSupport._
-                  val json = res.toJson
-                  println(json.prettyPrint)
-                  complete(json)
+                  parameter('type) {
+                    case "open" =>
+                      val res = Await.result(orderActorRef ? GetOpenOrders(creds.businessIds.head),
+                        resolveTimeout.duration).asInstanceOf[Seq[ProcessedOrder]]
+                      import info.whereismyfood.modules.order.ProcessedOrderJsonSupport._
+                      complete(res.toJson)
+                    case "enroute" =>
+                      val res = Await.result(orderActorRef ? GetEnrouteOrders(creds.businessIds.head),
+                        resolveTimeout.duration).asInstanceOf[Seq[ProcessedOrder]]
+                      import info.whereismyfood.modules.order.ProcessedOrderJsonSupport._
+                      complete(res.toJson)
+                    case _ => complete(400)
+                  }
               }
             }
       } ~
@@ -87,7 +95,7 @@ object OrderRoutes {
           path("mark-ready") {
             post {
               entity(as[OrderReady]) { mark =>
-                  val businessId = creds.businessIds.head
+                val businessId = creds.businessIds.head
                 Roles.isauthorized(markReady, businessId) match {
                   case false => complete(403)
                   case true =>

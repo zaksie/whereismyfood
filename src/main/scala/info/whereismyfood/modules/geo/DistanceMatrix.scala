@@ -1,8 +1,4 @@
-package info.whereismyfood.libs.math
-
-import info.whereismyfood.libs.geo.GeoMySQLInterface
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.collection.JavaConverters._
+package info.whereismyfood.modules.geo
 
 /**
   * Created by zakgoichman on 10/25/16.
@@ -17,7 +13,8 @@ object DistanceMatrix {
     locations.foreach { p1 =>
       locations.foreach {
         case p2 if p1 != p2 =>
-          GeoMySQLInterface.findDistanceBetween(p1,p2, radius_meter).map{
+          import scala.concurrent.ExecutionContext.Implicits.global
+          GeoMySQLInterface.findDistanceBetween(p1,p2)(radius_meter).map{
             case Some(distance) =>
               dm.add(distance)
             case _ =>

@@ -1,17 +1,17 @@
-package info.whereismyfood.libs.geo
+package info.whereismyfood.modules.geo
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.pattern.ask
 import com.google.cloud.datastore.FullEntity
 import com.google.maps.model.GeocodingResult
 import info.whereismyfood.libs.database.DatastoreStorable
-import info.whereismyfood.libs.math.LatLng
+import info.whereismyfood.libs.geo.AddressToLatLng
 import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 /**
   * Created by zakgoichman on 11/4/16.
   */
@@ -34,18 +34,18 @@ object Address extends DefaultJsonProtocol with SprayJsonSupport{
             Future.successful(Some(Address(latLng, address)))
           case _ =>
             system.actorSelection("/user/libs/google-geocoding-api").resolveOne().flatMap { aref =>
-              aref ? AddressToLatLng(address) map { result =>
-                log.info("in Address.of with result: {}", result)
-                result.asInstanceOf[Seq[GeocodingResult]].headOption match {
-                  case Some(result) =>
-                    Some(Address(LatLng(result.geometry.location), address))
-                  case _ => None
-                }
+              aref ? AddressToLatLng(address) map {
+                case x: GeocodingResult =>
+                  log.info("in Address.of with result: {}", x)
+                  Some(Address(LatLng(x.geometry.location), address))
+                case x =>
+                  println(x)
+                  None
               }
             }
         }
 
-        Await.result(f, 10 seconds) match {
+        Await.result(f, 30 seconds) match {
           case Some(addr) if !addr.latLng.isValid =>
             log.error(s"LatLng(${addr.latLng}) is invalid!")
             None
@@ -57,6 +57,8 @@ object Address extends DefaultJsonProtocol with SprayJsonSupport{
   }
 }
 case class Address(latLng: LatLng, raw: String = "") extends DatastoreStorable{
+  def geoid = latLng.geoid
+
   import Address._
   def this(entity: FullEntity[_]) = {
     this(new LatLng(entity.getLatLng(Address._latlng)),

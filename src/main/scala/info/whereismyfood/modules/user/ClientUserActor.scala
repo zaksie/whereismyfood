@@ -1,12 +1,12 @@
-package info.whereismyfood.modules.userActors
+package info.whereismyfood.modules.user
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import info.whereismyfood.aux.MyConfig.Topics
-import info.whereismyfood.libs.geo.BrowserGeolocation
-import info.whereismyfood.models.order.Order
-import info.whereismyfood.models.user.{ClientUser, Creds, HasPropsFunc}
-import info.whereismyfood.modules.userActors.UserActorUtils._
+import info.whereismyfood.modules.user.HasPropsFunc
+import info.whereismyfood.modules.geo.Geolocation
+import info.whereismyfood.modules.order.Order
+import info.whereismyfood.modules.user.UserActorUtils._
 
 import scala.collection.mutable
 /**
@@ -36,7 +36,7 @@ class ClientUserActor(implicit user: ClientUser) extends Actor with ActorLogging
     case order: Order =>
       orders += order
       followOrder(order)
-    case courierLocation: BrowserGeolocation =>
+    case courierLocation: Geolocation =>
       println(s"""Counter: $counter
       Phone: ${user.phone}
       Location: $courierLocation
@@ -48,7 +48,7 @@ class ClientUserActor(implicit user: ClientUser) extends Actor with ActorLogging
       subscriptions += topic
     case UnsubscribeToCourier(topic) =>
       subscriptions -= topic
-    case courierLocation: (Creds, BrowserGeolocation) =>
+    case courierLocation: (Creds, Geolocation) =>
       println(courierLocation)
     case Connected(outgoing) =>
       connectedUser = Some(outgoing)

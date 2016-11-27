@@ -1,13 +1,13 @@
-package info.whereismyfood.libs.geo
+package info.whereismyfood.modules.geo
 
+import com.google.maps.model.EncodedPolyline
 import info.whereismyfood.aux.MyConfig
+import info.whereismyfood.aux.MyConfig.Vars
 import info.whereismyfood.libs.database.Databases
-import info.whereismyfood.libs.math.{Distance, DistanceParams, LatLng}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import collection.JavaConverters._
 /**
   * Created by zakgoichman on 11/17/16.
   */
@@ -64,22 +64,22 @@ object GeoMySQLInterface {
       }
     }
   }
-  def findDistanceBetween(from: LatLng, to: LatLng, withinRadius_meter: Long): Future[Option[Distance]] = {
-    findNear(from, withinRadius_meter).flatMap {
-      case Some(id1) =>
-        findNear(to, withinRadius_meter).flatMap {
-          case Some(id2) =>
-            findDistanceBetween(id1, id2).map{
-              case Some(params) =>
-                Some(Distance(from, to, params.meters, params.seconds))
-              case _ => None
-            }
-          case _ => Future.successful(None)
+  def findIds(points: Seq[LatLng])(implicit withinRadius_meter: Long = Vars.nearby_meter): Future[Seq[Option[Long]]] = {
+    Future.sequence(points.map(findNear))
+  }
+  def findDistanceBetween(from: LatLng, to: LatLng)(implicit withinRadius_meter: Long = Vars.nearby_meter): Future[Option[Distance]] = {
+    findIds(Seq(from, to)).flatMap {
+      case Seq(a, b) if a.isDefined && b.isDefined =>
+        findDistanceBetween(a.get, b.get).map {
+          case Some(params) =>
+            Some(Distance(from, to, params.meters, params.seconds))
+          case _ => None
         }
       case _ => Future.successful(None)
     }
   }
-  def findDistanceBetween(from: Long, to: Long): Future[Option[DistanceParams]] = {
+
+  private def findDistanceBetween(from: Long, to: Long): Future[Option[DistanceParams]] = {
     val query =
       s"""SELECT * FROM $schema.distances WHERE from_id=$from AND to_id=$to"""
     Future{
@@ -96,9 +96,41 @@ object GeoMySQLInterface {
       }
     }
   }
-  def findNear(latLng: LatLng, radius_meter: Long): Future[Option[Long]] ={
+
+  def findRoute(from: LatLng, to: LatLng)(implicit withinRadius_meter: Long = Vars.nearby_meter): Future[Option[String]] = {
+    findIds(Seq(from, to)).flatMap {
+      case Seq(a, b) if a.isDefined && b.isDefined =>
+        findRoute(a.get, b.get).map {
+          case s@Some(_) if s.get != null  => s
+          case _ => None
+        }
+      case _ => Future.successful(None)
+    }
+  }
+
+  private def findRoute(from: Long, to: Long): Future[Option[String]] = {
     val query =
-      s"""SELECT id FROM $schema.locations WHERE ST_Distance_Sphere(location, Point(${latLng.lat},${latLng.lng})) < $radius_meter"""
+      s"""SELECT route FROM $schema.distances WHERE from_id=$from AND to_id=$to"""
+    Future{
+      try{
+        val res = Databases.sql.createStatement().executeQuery(query)
+        if(res.next()) {
+          Some(res.getString("route"))
+        }
+        else None
+      }catch{
+        case e:Exception =>
+          log.error(s"Failed to execute sql query: $query [{}]", e)
+          None
+      }
+    }
+  }
+
+  def findNear(latLng: LatLng)(implicit radius_meter: Long = Vars.nearby_meter): Future[Option[Long]] ={
+    val query =
+      s"""SELECT id FROM $schema.locations WHERE ST_Distance_Sphere(location, Point(${latLng.lat},${latLng.lng})) < $radius_meter
+         |ORDER BY St_distance_sphere(location, Point(${latLng.lat},${latLng.lng})) ASC
+       """.stripMargin
     Future{
       try{
         val res = Databases.sql.createStatement().executeQuery(query)
@@ -120,6 +152,25 @@ object GeoMySQLInterface {
       s"""INSERT IGNORE INTO $schema.distances (from_id, to_id, distance_meter, distance_sec)
           | SELECT id, (SELECT id FROM $schema.locations WHERE location = $toPoint),
           |  $distance_meter, $distance_sec FROM $schema.locations WHERE location = $fromPoint""".stripMargin
+
+    Future{
+      try{
+        Databases.sql.createStatement().execute(query)
+        true
+      }catch{
+        case e:Exception =>
+          log.error(s"Failed to execute sql query: $query [{}]", e)
+          false
+      }
+    }
+  }
+  def savePolyline(from: LatLng, to: LatLng, x: EncodedPolyline) = {
+    val fromPoint = s"""POINT(${from.lat},${from.lng})"""
+    val toPoint = s"""POINT(${to.lat},${to.lng})"""
+    val query =
+      s"""UPDATE $schema.distances SET route = ${x.getEncodedPath.escape}
+          | WHERE from_id=(SELECT id FROM $schema.locations WHERE location = $fromPoint)
+          | AND to_id=(SELECT id FROM $schema.locations WHERE location = $toPoint)""".stripMargin
 
     Future{
       try{

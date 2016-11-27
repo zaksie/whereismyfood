@@ -2,7 +2,8 @@ package info.whereismyfood.routes.api.v1.http
 
 import akka.http.scaladsl.server.Directives._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import info.whereismyfood.models.user._
+import info.whereismyfood.modules.user._
+import info.whereismyfood.modules.user.{Creds, UserRouter}
 /**
   * Created by zakgoichman on 10/20/16.
   */

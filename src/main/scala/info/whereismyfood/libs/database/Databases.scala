@@ -7,7 +7,7 @@ import com.google.cloud.datastore.{Entity, FullEntity}
   */
 object Databases {
   val persistent = DatastoreClient.instance
-  val sql = CloudSQLClient.connection
+  val sql = CloudSQLClient
   val inmemory = RedisClient.instance
 
   def init: Unit = None

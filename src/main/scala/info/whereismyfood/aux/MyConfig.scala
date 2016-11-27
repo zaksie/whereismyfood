@@ -22,7 +22,11 @@ object MyConfig {
     val courierUpdates = "courier-updates:"
     val chefUpdates = "chef-updates:"
   }
-
+  object Vars {
+    val recent_minutes = 5
+    val vehicle_capacity = 8
+    val nearby_meter = 50
+  }
   object ActorNames{
     object Paths{
       val businessManager = "/user/cluster-node/" + get("actor-names.business-manager")

@@ -3,6 +3,8 @@ package info.whereismyfood.routes.auth
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives
 import info.whereismyfood.aux.ActorSystemContainer
+import info.whereismyfood.modules.business.Business
+import info.whereismyfood.modules.business.Business.Jobs
 import info.whereismyfood.modules.user._
 import info.whereismyfood.modules.user._
 
@@ -45,7 +47,8 @@ object Login extends Directives with AuthenticationHandler {
         }
     } ~
     (path("key-login" / Segment) & post) {
-      case "chef" =>
+      case Jobs.chefs =>
+        println("In chefs...")
         entity(as[APIKey]) { apiKey =>
           complete {
             ChefUser.findAndVerify(apiKey) match {
@@ -55,7 +58,7 @@ object Login extends Directives with AuthenticationHandler {
             }
           }
         }
-      case "api" =>
+      case Jobs.apiers =>
         entity(as[APIKey]) { apiKey =>
           complete {
             APIUser.findAndVerify(apiKey) match {
@@ -65,5 +68,6 @@ object Login extends Directives with AuthenticationHandler {
             }
           }
         }
+      case _ => complete(400, "Incorrect business job")
     }
 }

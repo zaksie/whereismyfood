@@ -16,13 +16,15 @@ import scala.collection.JavaConverters._
 object Business extends DatastoreFetchable[Business] {
   type JobInBusiness = String
   val kind = "Business"
-  val _name = "name"
-  val _address = "address"
-  val _owners: JobInBusiness  = "owners"
-  val _couriers: JobInBusiness  = "couriers"
-  val _chefs: JobInBusiness = "chefs"
-  val _apiers: JobInBusiness = "apiers"
-  val _none: JobInBusiness = "none"
+  object Jobs {
+    val name = "name"
+    val address = "address"
+    val owners: JobInBusiness  = "owners"
+    val couriers: JobInBusiness  = "couriers"
+    val chefs: JobInBusiness = "chefs"
+    val apiers: JobInBusiness = "apiers"
+    val none: JobInBusiness = "none"
+  }
 
   def get(ids: Long*): Seq[Business] = {
     getFromDatastore(ids:_*)
@@ -30,14 +32,14 @@ object Business extends DatastoreFetchable[Business] {
 
   def apply(entity: Entity): Option[Business] = {
     try {
-      val owners = entity.getList[StringValue](_owners).asScala.map(_.get).toSet
-      val couriers = entity.getList[StringValue](_couriers).asScala.map(_.get).toSet
-      val chefs = entity.getList[StringValue](_chefs).asScala.map(_.get).toSet
-      val apiers = entity.getList[StringValue](_apiers).asScala.map(_.get).toSet
+      val owners = entity.getList[StringValue](Jobs.owners).asScala.map(_.get).toSet
+      val couriers = entity.getList[StringValue](Jobs.couriers).asScala.map(_.get).toSet
+      val chefs = entity.getList[StringValue](Jobs.chefs).asScala.map(_.get).toSet
+      val apiers = entity.getList[StringValue](Jobs.apiers).asScala.map(_.get).toSet
       Some {
         Business(entity.getKey.getId,
-          entity.getString(_name),
-          new Address(entity.getEntity(_address)),
+          entity.getString(Jobs.name),
+          new Address(entity.getEntity(Jobs.address)),
           owners, couriers, chefs, apiers)
       }
     } catch {

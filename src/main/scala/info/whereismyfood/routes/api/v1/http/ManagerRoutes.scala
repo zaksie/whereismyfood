@@ -101,7 +101,7 @@ object ManagerRoutes {
               case Some(id) =>
                 if (!creds.businessIds.contains(id)) complete(403)
                 else {
-                  Business.removeJobFrom(phone, id, Business._couriers)
+                  Business.removeJobFrom(phone, id, Business.Jobs.couriers)
                   complete(200)
                 }
               case _ =>

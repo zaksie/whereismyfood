@@ -10,7 +10,7 @@ object AdminUserAssets {
   def getAllFor(creds: Creds): Option[AdminUserAssets] = {
     if (creds.phone.isEmpty) return None
 
-    val businesses = Business.getAllFor(creds.phone, Business._owners)
+    val businesses = Business.getAllFor(creds.phone, Business.Jobs.owners)
     val ids: Set[String] = businesses.flatMap(_.couriers)
     val couriers = CourierUser.getIdsFromDB(ids).map(_.toCourierJson).toSet
 

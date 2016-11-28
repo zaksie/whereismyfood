@@ -26,7 +26,7 @@ object WebServer {
 
     val bindingFuture = Http().bindAndHandle(Routes.routes, "localhost", port)
 
-    println(s"Server online at http://localhost:"+port+"/\nPress RETURN phone stop...")
+    println(s"Server started at http://localhost:$port")
     bindingFuture.onFailure {
       case ex: Exception =>
         log.error("Failed phone bind phone port " + port, ex)

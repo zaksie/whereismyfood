@@ -2,7 +2,7 @@ package info.whereismyfood
 
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
-import info.whereismyfood.aux.ActorSystemContainer
+import info.whereismyfood.aux.{ActorSystemContainer, MyConfig}
 
 
 /**
@@ -16,11 +16,11 @@ object AppCluster {
       // Override the configuration of the port
 //      val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + ports._1).
 //        withFallback(ConfigFactory.load())
-      implicit val system = ActorSystem("YummletSystem", ConfigFactory.load())
+      implicit val system = ActorSystem("YummletSystem", MyConfig.config)
       ActorSystemContainer.init(ActorSystemContainer())
 
       // Create an actor that handles cluster domain events
-      system.actorOf(Props(WebServerClusterListener(8082)), name = "cluster-node")
+      system.actorOf(Props(WebServerClusterListener(MyConfig.getInt("server.port"))), name = "cluster-node")
     //}
   }
 }

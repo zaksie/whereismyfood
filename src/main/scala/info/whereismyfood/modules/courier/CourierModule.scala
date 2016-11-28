@@ -36,7 +36,7 @@ class CourierActor extends Actor {
       else CourierUser.of(courier, businessId) match {
         case user: CourierUser =>
           user.save
-          sender ! Business.addJobTo(courier.phone, businessId, Business._couriers)
+          sender ! Business.addJobTo(courier.phone, businessId, Business.Jobs.couriers)
         case _ => sender ! false
       }
   }

@@ -11,7 +11,7 @@ import info.whereismyfood.modules.user.Roles.RoleID
 
 object ManagerUser extends GenericUserTrait[ManagerUser]{
   override def role: RoleID = Roles.manager
-  def jobInBusiness: Business.JobInBusiness = Business._owners
+  def jobInBusiness: Business.JobInBusiness = Business.Jobs.owners
   override def of(creds: Creds) = ManagerUser(creds)
   def find(creds: Creds): Option[ManagerUser] = {
     find(creds.phone) match {

@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 
 object CourierUser extends GenericUserTrait[CourierUser]{
   override def role: RoleID = Roles.courier
-  def jobInBusiness: Business.JobInBusiness = Business._couriers
+  def jobInBusiness: Business.JobInBusiness = Business.Jobs.couriers
   def of(creds: Creds): CourierUser = CourierUser(creds)
   def of(courier: CourierJson, businessId: Long): CourierUser = {
     find(courier.phone) match {

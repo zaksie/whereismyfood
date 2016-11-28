@@ -50,8 +50,11 @@ trait GenericUserTrait[T <: GenericUser]{
     userActorFactory match {
       case Some(factory) =>
         import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-        implicit val user = of(creds)
-        Some(system.actorOf(factory.props))
+        find(creds.phone) match {
+          case Some(user) =>
+            Some(system.actorOf(factory.props(user)))
+          case _ => None
+        }
     }
   }
 
@@ -139,6 +142,7 @@ trait GenericUserTrait[T <: GenericUser]{
 
       creds.setRole(entity.getLong(_role))
       creds.setBusinesses(Business.getIdsFor(creds.phone, jobInBusiness))
+      log.info(s"Got business list for $jobInBusiness: ${creds.businessIds.mkString}")
       val obj: T = of(creds)
       obj.extendFromDatastore(entity)
     }.toOption

@@ -23,7 +23,7 @@ final case class Creds(phone: String, uuid: Option[String] = None, var otp: Opti
 
   private var __deviceId: Option[String] = None
   def setDeviceIdIfNone(deviceId: String) = __deviceId = Some(deviceId)
-  def deviceId: Option[String] = uuid.orElse(__deviceId)
+  def deviceId: Option[String] = __deviceId.orElse(uuid)
 
   private var __role: RoleID = Roles.unknown
   def setRole(role: RoleID): Creds = {this.__role = role; this}

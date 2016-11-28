@@ -13,7 +13,7 @@ import info.whereismyfood.modules.user.Roles.RoleID
 object ClientUser extends GenericUserTrait[ClientUser]{
   override def role: RoleID = Roles.client
   def jobInBusiness: Business.JobInBusiness = Business.Jobs.none
-  override def of(creds: Creds): ClientUser = ClientUser(creds)
+  override def of(creds: Creds) = ClientUser(creds)
   override protected def userActorFactory = Some(ClientUserActor)
 }
 

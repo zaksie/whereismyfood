@@ -7,29 +7,26 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import akka.pattern.ask
-import info.whereismyfood.modules.user.{Creds, Roles}
+import info.whereismyfood.modules.user.{APIUser, Creds, Roles, UserRouter}
 import info.whereismyfood.modules.order.OrderModule._
 import info.whereismyfood.modules.order.{OrderError, OrderReady, Orders, ProcessedOrder}
-import info.whereismyfood.modules.user.{APIUser, Creds, Roles}
 import spray.json._
 
 /**
   * Created by zakgoichman on 10/21/16.
   */
 object OrderRoutes {
-
-  import info.whereismyfood.modules.order.OrdersJsonSupport._
-
   val log = LoggerFactory.getLogger(this.getClass)
   val orderActorRef = Await.result(system.actorSelection("/user/modules/order").resolveOne(), resolveTimeout.duration)
 
   def routes(implicit creds: Creds) = {
-    implicit val user = APIUser.of(creds)
-    import info.whereismyfood.modules.user.Roles.api.order.{add, modify, delete => delete_role, markReady, view}
+    import Roles.api.order.{delete => delete_role, _}
+    import info.whereismyfood.modules.order.OrdersJsonSupport._
     pathPrefix("orders") {
       pathEndOrSingleSlash {
         put {
           entity(as[Orders]) { orders =>
+            log.info("In /orders PUT")
             Roles.isauthorized(add, orders.businessId) match {
               case false => complete(403)
               case true =>
@@ -50,6 +47,7 @@ object OrderRoutes {
         } ~
             patch {
               entity(as[Orders]) { orders =>
+                log.info("In /orders PATCH")
                 Roles.isauthorized(modify, orders.businessId) match {
                   case false => complete(403)
                   case true =>
@@ -66,6 +64,7 @@ object OrderRoutes {
               Roles.isauthorized(view, creds.businessIds.head) match {
                 case false => complete(403)
                 case true =>
+                  log.info("In /orders GET")
                   parameter('type) {
                     case "open" =>
                       val res = Await.result(orderActorRef ? GetOpenOrders(creds.businessIds.head),
@@ -87,6 +86,7 @@ object OrderRoutes {
               Roles.isauthorized(delete_role, businessId) match {
                 case false => complete(403)
                 case true =>
+                  log.info("In /orders DELETE")
                   val ok = Await.result(orderActorRef ? DeleteOrders(businessId, orderId), resolveTimeout.duration).asInstanceOf[Boolean]
                   complete(if (ok) 200 else 400)
               }
@@ -99,6 +99,7 @@ object OrderRoutes {
                 Roles.isauthorized(markReady, businessId) match {
                   case false => complete(403)
                   case true =>
+                    log.info("In /orders/mark-ready")
                     val ok = Await.result(orderActorRef ? MarkOrdersReady(businessId, mark.orderId, mark.ready), resolveTimeout.duration).asInstanceOf[Boolean]
                     complete(if (ok) 200 else 400)
                 }

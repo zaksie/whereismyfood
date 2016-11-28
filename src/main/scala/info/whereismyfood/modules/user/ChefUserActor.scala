@@ -43,8 +43,10 @@ object ChefUserActor extends HasPropsFunc[ChefUser] {
   case class ChefSubscriptions(override val actor: ActorRef)
                               (implicit override val user: ChefUser, implicit override val mediator: ActorRef)
       extends Subscriptions(actor){
-    override def selfTopic: String =
-      Topics.chefUpdates + user.businessIds.head
+    override def selfTopic: String = {
+      val s = Topics.chefUpdates + user.businessIds.head
+      s
+    }
   }
   def props(implicit user: ChefUser) =
     Props(new ChefUserActor)

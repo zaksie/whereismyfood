@@ -46,15 +46,15 @@ object Roles {
     (role & client) != 0
   }
 
-  def isauthorized(role: RoleID)(implicit user: GenericUser): Boolean = {
-    (user.role & role) != 0
+  def isauthorized(role: RoleID)(implicit creds: Creds): Boolean = {
+    (creds.role & role) != 0
   }
 
-  def isauthorized(role: RoleID, businessId: Long)(implicit user: GenericUser): Boolean ={
+  def isauthorized(role: RoleID, businessId: Long)(implicit creds: Creds): Boolean ={
     Try{
-      (user.role & role) != 0 &&
-        (user.role == Roles.api.master ||
-          user.businessIds.contains(businessId))
+      (creds.role & role) != 0 &&
+        (creds.role == Roles.api.master ||
+          creds.businessIds.contains(businessId))
     }.getOrElse(false)
   }
 }

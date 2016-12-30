@@ -8,13 +8,15 @@ import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.util.Timeout
 import akka.pattern.ask
 import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution
-import info.whereismyfood.aux.MyConfig.{ActorNames, Topics}
+import info.whereismyfood.aux.MyConfig.{ActorNames, OpCodes, Topics}
 import info.whereismyfood.aux.{ActorSystemContainer, MyConfig}
 import info.whereismyfood.libs.opres.cvrp.{CVRPParams, Fleet}
 import info.whereismyfood.modules.geo.{DeliveryRoute, LatLng, _}
 import info.whereismyfood.modules.order.ProcessedOrder
 import info.whereismyfood.modules.order.ProcessedOrder.OrderStatuses
 import info.whereismyfood.modules.user.CourierUser
+import monix.reactive.Consumer
+import monix.reactive.subjects.ConcurrentSubject
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -32,16 +34,14 @@ case object PeriodicDispatchAttempt
 
 // Outgoing case classes/objects
 case class ReadyToShipOrders(businessId: Long, orders: Seq[ProcessedOrder]){
-  import info.whereismyfood.modules.order.OrderJsonFormatters.{OpType_JsonFormatter, OpType_Orders_Json}
-
-  def save() = {
+  def save(): Boolean = {
     ProcessedOrder.save(orders:_*)
   }
 
-  private val jsonRepresentation = OpType_Orders_Json("ship", orders)
   def toJsonString: String = {
-    import OpType_JsonFormatter._
-    jsonRepresentation.toJson.compactPrint
+    import info.whereismyfood.modules.comm.JsonProtocol.WithType
+    import info.whereismyfood.modules.order.ProcessedOrderJsonSupport._
+    orders.toJson.compactPrint withOpCode OpCodes.Chef.enroute
   }
 }
 
@@ -56,13 +56,10 @@ object BusinessSingleton{
 
 class BusinessSingleton(business: Business) extends Actor with ActorLogging {
   case class DispatchItinerary(solution: VehicleRoutingProblemSolution)
-
+  import monix.execution.Scheduler.Implicits.global
   case class ItineraryError(err: String)
-
   case object NoAvailableCouriers
-
   import BusinessSingleton._
-
   private val name = getName(business.id)
   private val origin = business.address.latLng
   //TODO: put these below to good use
@@ -70,13 +67,26 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
   private var latestHash: Int = 0
   val mediator = DistributedPubSub(context.system).mediator
 
-  system.scheduler.schedule(10 seconds, 3 minutes, self, PeriodicDispatchAttempt)
+  system.scheduler.schedule(10 seconds, 5 minutes, self, PeriodicDispatchAttempt)
   implicit val timeout = Timeout(30 seconds)
 
   println("Path of businessSingleton: " + context.self.path)
+  val publishMark = ConcurrentSubject.publish[Unit]
+  publishMark.throttleFirst(15 seconds).debounce(15 seconds)
+      .consumeWith {
+        Consumer.foreach(_ => attemptDispatchOrders()) //TODO: Check that suspicious foreach statement
+      }.runAsync
+
+
+  def updateLastConsultationDate(userId: String): Unit = {
+    //TODO
+    ???
+  }
 
   override def receive: Receive = {
-    case PeriodicDispatchAttempt | OnOrderMarkChange =>
+    case OnOrderMarkChange =>
+      publishMark.onNext()
+    case PeriodicDispatchAttempt =>
       attemptDispatchOrders()
   }
 
@@ -99,7 +109,8 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
 
   def tryConstructRoute(): Any =
     activeAndReadyOrders match {
-      case Seq() => None
+      case Seq() =>
+        None
       case orders =>
         val orderSet = orders.toSet
         val earliestOrderEpochSecond: Long = orderSet.reduce((a, b) => if (a.timestamp < b.timestamp) a else b).timestamp

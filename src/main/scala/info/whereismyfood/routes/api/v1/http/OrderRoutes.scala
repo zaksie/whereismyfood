@@ -9,7 +9,7 @@ import scala.concurrent.Await
 import akka.pattern.ask
 import info.whereismyfood.modules.user.{APIUser, Creds, Roles, UserRouter}
 import info.whereismyfood.modules.order.OrderModule._
-import info.whereismyfood.modules.order.{OrderError, OrderReady, Orders, ProcessedOrder}
+import info.whereismyfood.modules.order._
 import spray.json._
 
 /**
@@ -61,10 +61,10 @@ object OrderRoutes {
               }
             } ~
             get {
+              log.info("In /orders GET")
               Roles.isauthorized(view, creds.businessIds.head) match {
                 case false => complete(403)
                 case true =>
-                  log.info("In /orders GET")
                   parameter('type) {
                     case "open" =>
                       val res = Await.result(orderActorRef ? GetOpenOrders(creds.businessIds.head),
@@ -81,31 +81,62 @@ object OrderRoutes {
               }
             }
       } ~
-          path(LongNumber / Segment) { (businessId, orderId) =>
-            delete {
-              Roles.isauthorized(delete_role, businessId) match {
-                case false => complete(403)
-                case true =>
-                  log.info("In /orders DELETE")
-                  val ok = Await.result(orderActorRef ? DeleteOrders(businessId, orderId), resolveTimeout.duration).asInstanceOf[Boolean]
-                  complete(if (ok) 200 else 400)
-              }
-            }
-          } ~
-          path("mark-ready") {
-            post {
-              entity(as[OrderReady]) { mark =>
-                val businessId = creds.businessIds.head
-                Roles.isauthorized(markReady, businessId) match {
-                  case false => complete(403)
-                  case true =>
-                    log.info("In /orders/mark-ready")
-                    val ok = Await.result(orderActorRef ? MarkOrdersReady(businessId, mark.orderId, mark.ready), resolveTimeout.duration).asInstanceOf[Boolean]
-                    complete(if (ok) 200 else 400)
-                }
-              }
+      path(LongNumber / Segment) { (businessId, orderId) =>
+        delete {
+          Roles.isauthorized(delete_role, businessId) match {
+            case false => complete(403)
+            case true =>
+              log.info("In /orders DELETE")
+              val ok = Await.result(orderActorRef ? DeleteOrders(businessId, orderId), resolveTimeout.duration).asInstanceOf[Boolean]
+              complete(if (ok) 200 else 400)
+          }
+        }
+      } ~
+      path("mark-ready") {
+        post {
+          entity(as[OrderReady]) { mark =>
+            val businessId = creds.businessIds.head
+            Roles.isauthorized(markReady, businessId) match {
+              case false => complete(403)
+              case true =>
+                log.info("In /orders/mark-ready")
+                val ok = Await.result(orderActorRef ? MarkOrdersReady(businessId, mark.orderId, mark.ready), resolveTimeout.duration).asInstanceOf[Boolean]
+                complete(if (ok) 200 else 400)
             }
           }
+        }
+      } ~
+      pathPrefix("open" / "this-user" / LongNumber) { businessId =>
+        (get & pathEndOrSingleSlash) {
+          log.info(s"GET In /orders/open/this-user[${creds.phone}]/businessId[$businessId]")
+          Await.result(orderActorRef ? GetOpenOrderForUser(businessId, creds), resolveTimeout.duration)
+              .asInstanceOf[Option[OpenOrder]] match {
+            case Some(order) =>
+              import OpenOrderJsonSupport._
+              complete(order.toJson.compactPrint)
+            case _ => complete(404)
+          }
+        } ~
+        pathPrefix("item") {
+          (put & pathEndOrSingleSlash) {
+            import OrderJsonSupport._
+            entity(as[OrderItem]) { item =>
+              log.info(s"PUT In /orders/open/this-user[${creds.phone}]/businessId[$businessId]")
+              if (Await.result(orderActorRef ? PutOrderItemForUser(businessId, creds, item), resolveTimeout.duration)
+                  .asInstanceOf[Boolean]) {
+                complete(200)
+              } else complete(400)
+            }
+          } ~
+          (delete & path(Segment)) { itemId =>
+            log.info(s"DELETE In /orders/open/this-user[${creds.phone}]/businessId[$businessId]/itemId[$itemId]")
+            if (Await.result(orderActorRef ? DeleteOrderItemForUser(businessId, creds, itemId), resolveTimeout.duration)
+                .asInstanceOf[Boolean]) {
+              complete(200)
+            } else complete(400)
+          }
+        }
+      }
     }
   }
 }

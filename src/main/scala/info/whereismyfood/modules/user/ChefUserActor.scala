@@ -2,40 +2,35 @@ package info.whereismyfood.modules.user
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
-import info.whereismyfood.aux.MyConfig.Topics
+import info.whereismyfood.aux.MyConfig.{OpCodes, Topics}
 import info.whereismyfood.modules.business.ReadyToShipOrders
 import info.whereismyfood.modules.order.ProcessedOrder
 import info.whereismyfood.modules.user.UserActorUtils._
 import spray.json._
+import info.whereismyfood.modules.comm.JsonProtocol.WithType
+import info.whereismyfood.modules.order.ProcessedOrderJsonSupport._
 
 /**
   * Created by zakgoichman on 11/7/16.
   */
 
-import info.whereismyfood.modules.order.OrderJsonFormatters._
 trait OpProcessedOrders
 
 case class AddProcessedOrders(orders: Seq[ProcessedOrder]) extends OpProcessedOrders{
-  private val jsonRepresentation = OpType_Orders_Json("add", orders)
   def toJsonString: String = {
-    import OpType_JsonFormatter._
-    jsonRepresentation.toJson.compactPrint
+    orders.toJson.compactPrint withOpCode OpCodes.Chef.add
   }
 }
 
 case class ModifyProcessedOrders(orders: Seq[ProcessedOrder]) extends OpProcessedOrders {
-  private val jsonRepresentation = OpType_Orders_Json("modify", orders)
   def toJsonString: String = {
-    import OpType_JsonFormatter._
-    jsonRepresentation.toJson.compactPrint
+    orders.toJson.compactPrint withOpCode OpCodes.Chef.modify
   }
 }
 
 case class DeleteProcessedOrder(orderId: String){
-  private val jsonRepresentation = SingleOpType_Json("delete", orderId)
   def toJsonString: String = {
-    import OpType_JsonFormatter._
-    jsonRepresentation.toJson.compactPrint
+    orderId.toJson.compactPrint withOpCode OpCodes.Chef.delete
   }
 }
 

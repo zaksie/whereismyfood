@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Preview</title>
+  <style type="text/css">
+    html, body {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+    #pdf-container{
+      width: 100vw;
+      height: 100%;
+      overflow: scroll;
+      -webkit-overflow-scrolling: touch;
+    }
+    object {
+      width: 100%;
+      height: 2000px;
+      border: 0;
+    }
+  </style>
+  <script>
+    function handleMessage(msg) {
+      window.postMessage(msg)
+    }
+    function setupHandler() {
+      window.postMessage("html loaded successfully")
+      document.getElementById("myPdf").messageHandler = { onMessage: handleMessage };
+    }
+  </script>
+</head>
+<body onLoad="setupHandler();">
+<div id="pdf-container">
+<object id="myPdf" type="application/pdf" data="%MENU_URL%">
+  <script>
+    window.postMessage("FAILED")
+  </script>
+</object>
+</div>
+</body>
+</html>

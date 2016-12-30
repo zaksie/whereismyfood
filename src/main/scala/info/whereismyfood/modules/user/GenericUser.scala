@@ -4,12 +4,12 @@ import java.time.{ZoneOffset, ZonedDateTime}
 
 import akka.actor.{ActorRef, Props}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
-import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import com.google.cloud.datastore._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.MyConfig.Vars
-import info.whereismyfood.libs.auth.{OTP, VerificationResult}
+import info.whereismyfood.libs.auth.{OTP}
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable}
 import info.whereismyfood.modules.auth.RequestOTP
 import info.whereismyfood.modules.business.Business
@@ -42,6 +42,23 @@ trait HasPropsFunc[T <: GenericUser] {
 }
 
 trait GenericUserTrait[T <: GenericUser]{
+  def requestOTP(phone: String): Boolean = {
+    find(phone) match {
+      case Some(user) =>
+        user.requestOTP()
+      case _ => false
+    }
+  }
+
+  def verifyOTP(creds: Creds): Option[T] = {
+    find(creds.phone) match {
+      case Some(user) =>
+        if(user.verifyOTP(creds.otp.getOrElse(""))) Some(user)
+        else None
+      case _ => None
+    }
+  }
+
   UserRouter.addUserCompanionObject(this)
   def unlazy = None
 
@@ -55,6 +72,8 @@ trait GenericUserTrait[T <: GenericUser]{
             Some(system.actorOf(factory.props(user)))
           case _ => None
         }
+      case _ =>
+        None
     }
   }
 
@@ -86,7 +105,7 @@ trait GenericUserTrait[T <: GenericUser]{
     val recent = ZonedDateTime.now(ZoneOffset.UTC).minusMinutes(Vars.recent_minutes).toEpochSecond
     val radius = MyConfig.Vars.nearby_meter
     Geolocation.retrieve(jobInBusiness, ids.toSeq:_*)
-        .filter(x=>Distance.asTheCrowFlies(x.coords.toLatLng, here) < radius)
+        .filter(x => Distance.asTheCrowFlies(x.coords.toLatLng, here) < radius)
         .filter(_.timestamp > recent).flatMap { x =>
       Try {
         CourierUser.find(x.key).get.setGeolocation(x)
@@ -94,7 +113,7 @@ trait GenericUserTrait[T <: GenericUser]{
     }
 
     //TODO: remove. here just for testing
-    Seq(CourierUser.find("482394").get, CourierUser.find("world").get)
+    Seq(CourierUser.find("world").get)
   }
 
   def find(phone: String): Option[T] = {
@@ -105,7 +124,7 @@ trait GenericUserTrait[T <: GenericUser]{
     }
   }
   def findAndVerify(apiKey: APIKey): Option[T] = {
-    find(apiKey.key) match {
+    find(apiKey.fkey) match {
       case Some(user) =>
         user.deviceId match {
           case Some(existingDevId) if existingDevId.nonEmpty =>
@@ -176,7 +195,7 @@ abstract class GenericUser(private val creds: Creds)
   protected var __geolocation: Option[Geolocation] = None
   def geolocation: Option[Geolocation] = __geolocation
 
-  lazy val addressOptionProcessed = {
+  protected lazy val addressOptionProcessed = {
     if(creds.geoaddress.isDefined) creds.geoaddress
     else Address.of(creds.address)
   }
@@ -209,18 +228,6 @@ abstract class GenericUser(private val creds: Creds)
     this
   }
 
-  def verifyOTP: Boolean = {
-    if (creds.otp.isEmpty || creds.otp.get == "") return false
-
-    OTP.retrieve(otpKey) match {
-      case otp @ Some(_) if otp == creds.otp =>
-        true
-      case Some(otp) =>
-        println("incorrect otp. should be " + otp)
-        false
-      case _ => false
-    }
-  }
 
   override def asDatastoreEntity: Option[FullEntity[_]] = {
     val key = datastore.newKeyFactory().setKind(USER_KIND).newKey(phone)
@@ -252,9 +259,9 @@ abstract class GenericUser(private val creds: Creds)
     s"Your Yummlet.com code: ${otps.head}"
   }
 
-  def otpKey = (Seq(role, phone, deviceId.getOrElse("")) ++ businessIds).mkString("-") + "-OTP"
+  def otpKey: String = Seq(role, phone).mkString("-") + "-OTP"
 
-  def requestOTP: Boolean = {
+  def requestOTP(): Boolean = {
     Try {
       val otps = generateOTPs()
       saveOTPs(otps.toSeq: _*)
@@ -273,15 +280,22 @@ abstract class GenericUser(private val creds: Creds)
       OTP.save(otpKey, otp)
     }
   }
+  def verifyOTP: Boolean = {
+    verifyOTP(creds.otp.getOrElse(""))
+  }
+  def verifyOTP(_otp: String): Boolean = {
+    if (_otp == "") return false
 
-  def verifyOTP(user: GenericUser, otpFromUser: String): VerificationResult = {
-    OTP.retrieve(otpKey) match{
-      case Some(otpFromDB) if otpFromDB == otpFromUser =>
-        VerificationResult(Some(this))
-      case None => VerificationResult(None)
+    val o = OTP.retrieve(otpKey)
+    o match {
+      case otp @ Some(_) if otp.get == _otp =>
+        true
+      case Some(otp) =>
+        println("incorrect otp. should be " + otp)
+        false
+      case _ => false
     }
   }
-
   def extendFromDatastore(entity: Entity): this.type
 
   def asDatastoreAncestor: PathElement = PathElement.of(USER_KIND, phone)

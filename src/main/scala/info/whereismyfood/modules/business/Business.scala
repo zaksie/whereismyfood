@@ -16,18 +16,20 @@ import scala.collection.JavaConverters._
 object Business extends DatastoreFetchable[Business] {
   type JobInBusiness = String
   val kind = "Business"
+
   object Jobs {
     val name = "name"
     val address = "address"
-    val owners: JobInBusiness  = "owners"
-    val couriers: JobInBusiness  = "couriers"
+    val owners: JobInBusiness = "owners"
+    val couriers: JobInBusiness = "couriers"
     val chefs: JobInBusiness = "chefs"
+    val clients: JobInBusiness = "clients"
     val apiers: JobInBusiness = "apiers"
     val none: JobInBusiness = "none"
   }
 
   def get(ids: Long*): Seq[Business] = {
-    getFromDatastore(ids:_*)
+    getFromDatastore(ids: _*)
   }
 
   def apply(entity: Entity): Option[Business] = {
@@ -49,7 +51,7 @@ object Business extends DatastoreFetchable[Business] {
     }
   }
 
-  def fromEntity(entity:Entity): Option[Business] = {
+  def fromEntity(entity: Entity): Option[Business] = {
     apply(entity)
   }
 
@@ -58,33 +60,34 @@ object Business extends DatastoreFetchable[Business] {
   }
 
   def getFromDatastore(businessIds: Long*): Seq[Business] = {
-    val keys = createKeys(businessIds:_*)
+    val keys = createKeys(businessIds: _*)
     datastore.get(keys: _*).asScala.toSeq.flatMap(Business.fromEntity)
   }
 
   def getAll: Set[Business] = {
     val q: Query[Entity] = Query.newEntityQueryBuilder()
-      .setKind(Business.kind)
-      .build()
+        .setKind(Business.kind)
+        .build()
 
     datastore.run(q, ReadOption.eventualConsistency())
-      .asScala.toSet.flatMap(Business.fromEntity)
+        .asScala.toSet.flatMap(Business.fromEntity)
   }
 
-  private def getEntitiesFor(phone: String, jobInBusiness: JobInBusiness): Set[Entity]={
+  private def getEntitiesFor(phone: String, jobInBusiness: JobInBusiness): Set[Entity] = {
     val q: Query[Entity] = Query.newEntityQueryBuilder()
-      .setKind(Business.kind)
-      .setFilter(PropertyFilter.eq(jobInBusiness, phone))
-      .build()
+        .setKind(Business.kind)
+        .setFilter(PropertyFilter.eq(jobInBusiness, phone))
+        .build()
 
     datastore.run(q, ReadOption.eventualConsistency())
-      .asScala.toSet
+        .asScala.toSet
   }
 
   def getIdsFor(phone: String, jobInBusiness: JobInBusiness): Set[Long] = {
     getEntitiesFor(phone, jobInBusiness).map(_.getKey.getId.toLong)
   }
-  def getAllFor(phone: String, jobInBusiness: JobInBusiness): Set[Business]={
+
+  def getAllFor(phone: String, jobInBusiness: JobInBusiness): Set[Business] = {
     getEntitiesFor(phone, jobInBusiness).flatMap(Business.fromEntity)
   }
 
@@ -94,21 +97,20 @@ object Business extends DatastoreFetchable[Business] {
       val key: Key = createKeys(businessId).head
       val entity = txn.get(key)
       val couriers: Set[StringValue] = entity.getList[StringValue](jobInBusiness)
-        .asScala.toSet.filter(_.get != id)
+          .asScala.toSet.filter(_.get != id)
 
       val newEntity = Entity.newBuilder(entity)
-        .set(jobInBusiness, couriers.toList.asJava)
-        .build
+          .set(jobInBusiness, couriers.toList.asJava)
+          .build
       txn.update(newEntity)
       txn.commit()
       true
     } finally {
-      txn.isActive() match {
-        case true =>
-          txn.rollback()
-          false
-        case _ => true
+      if (txn.isActive) {
+        txn.rollback()
+        return false
       }
+      else return true
     }
   }
 
@@ -123,29 +125,25 @@ object Business extends DatastoreFetchable[Business] {
       val key: Key = createKeys(businessId).head
       val entity = txn.get(key)
       val couriers: Set[StringValue] = entity.getList[StringValue](jobInBusiness)
-        .asScala.toSet + addedCourier
+          .asScala.toSet + addedCourier
 
       val newEntity = Entity.newBuilder(entity)
-        .set(jobInBusiness, couriers.toList.asJava)
-        .build
+          .set(jobInBusiness, couriers.toList.asJava)
+          .build
       txn.update(newEntity)
       txn.commit()
       true
     } finally {
-      txn.isActive() match {
-        case true =>
-          txn.rollback()
-          false
-        case _ => true
-      }
+      if (txn.isActive) {
+        txn.rollback()
+        return false
+      } else return true
     }
   }
 }
 
-
 case class Business(id: Long, name: String, address: Address, owners: Set[String], couriers: Set[String],
                     chefs: Set[String], apiers: Set[String], config: BusinessConfig = BusinessConfig.default)
-
 
 
 trait BusinessJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {

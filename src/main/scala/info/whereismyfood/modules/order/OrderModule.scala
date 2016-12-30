@@ -8,7 +8,7 @@ import info.whereismyfood.aux.MyConfig.{ActorNames, Topics}
 import ProcessedOrder.OrderStatuses
 import info.whereismyfood.modules.business.{BusinessSingleton, OnOrderMarkChange, ReadyToShipOrders}
 import info.whereismyfood.modules.geo.GeoMySQLInterface
-import info.whereismyfood.modules.user.{AddProcessedOrders, DeleteProcessedOrder, ModifyProcessedOrders, OpProcessedOrders}
+import info.whereismyfood.modules.user._
 
 import scala.util.Try
 
@@ -24,6 +24,9 @@ object OrderModule {
   case class MarkOrdersReady(businessId: Long, orderId: String, mark: Boolean)
   case class GetOpenOrders(businessId: Long)
   case class GetEnrouteOrders(businessId: Long)
+  case class GetOpenOrderForUser(businessId: Long, creds: Creds)
+  case class PutOrderItemForUser(businessId: Long, creds: Creds, item: OrderItem)
+  case class DeleteOrderItemForUser(businessId: Long, creds: Creds, itemId: String)
 
   def props = Props[OrderActor]
 
@@ -38,12 +41,14 @@ class OrderActor extends Actor with ActorLogging {
 
   import OrderModule._
 
+
   override def receive: Receive = {
     case GetOpenOrders(businessId) =>
-      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isOpen)
+      log.info("Getting open orders...")
+      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.notYetShipped)
     case GetEnrouteOrders(businessId) =>
+      log.info("Getting enroute orders...")
       sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isEnroute)
-
     case AddOrders(orders) =>
       sender ! addOrders(orders)
     case ModifyOrders(orders) =>
@@ -52,15 +57,32 @@ class OrderActor extends Actor with ActorLogging {
       sender ! deleteOrder(x)
     case x: MarkOrdersReady =>
       sender ! markOrder(x)
+    case x: GetOpenOrderForUser =>
+      sender ! getOpenOrderForUser(x)
+    case x: PutOrderItemForUser =>
+      sender ! putOpenOrderForUser(x)
+    case x: DeleteOrderItemForUser =>
+      sender ! deleteOpenOrderForUser(x)
+
+  }
+
+  def getOpenOrderForUser(x: GetOpenOrderForUser): Option[OpenOrder] = {
+    OpenOrder.retrieve(x.businessId, x.creds.phone)
+  }
+
+  def putOpenOrderForUser(x: PutOrderItemForUser): Boolean = {
+    OpenOrder.addItem(x.businessId, x.creds.phone, x.item)
+  }
+
+  def deleteOpenOrderForUser(x: DeleteOrderItemForUser): Boolean = {
+    OpenOrder.removeItem(x.businessId, x.creds.phone, x.itemId)
   }
 
   def markOrder(x: MarkOrdersReady): Boolean = {
     // This is the only case that requires notifying route planner
-    ProcessedOrder.mark(x.businessId, x.orderId, x.mark) match {
-      case true =>
+    if(ProcessedOrder.mark(x.businessId, x.orderId, x.mark))
         notifyRoutePlanner(x.businessId)
-      case _ => false
-    }
+    else false
   }
 
   def deleteOrder(req: DeleteOrders): Boolean = {

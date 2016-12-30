@@ -24,7 +24,11 @@ object Roles {
       val delete = role(6)
       val markReady = role(7)
       val view = role(8)
-      val all = add | modify | delete | markReady
+      val all = add | modify | delete | markReady | view
+    }
+    object business{
+      val view = role(9)
+      val all = view
     }
   }
   val MAX = role(62) - 1L

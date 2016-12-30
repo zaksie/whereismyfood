@@ -9,12 +9,12 @@ import scala.collection.mutable
 object UserRouter {
   private val log = LoggerFactory.getLogger(this.getClass)
 
-  private var userKinds = mutable.Set[GenericUserTrait[_]]()
-  def addUserCompanionObject(obj: GenericUserTrait[_]): Unit = {
+  private var userKinds = mutable.Set[GenericUserTrait[_ <: GenericUser]]()
+  def addUserCompanionObject(obj: GenericUserTrait[_ <: GenericUser]): Unit = {
     userKinds += obj
   }
 
-  def getByJob(job: String): Option[GenericUserTrait[_]] = {
+  def getByJob(job: String): Option[GenericUserTrait[_ <: GenericUser]] = {
     userKinds.find(_.jobInBusiness == job)
   }
 }

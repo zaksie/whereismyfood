@@ -21,53 +21,46 @@ object Login extends Directives with AuthenticationHandler {
   }
 
   def routes =
-    (path("request-otp" / Segment) & post) {
-    case "manager" =>
-      entity(as[String]) { phone =>
+    (path("request-otp" / Segment) & post) { job =>
+      entity(as[Creds]) { creds =>
         complete {
-          ManagerUser.find(phone) match {
-            case Some(user) =>
-              user.requestOTP
-              HttpResponse(StatusCodes.OK)
-            case None => 401
+          UserRouter.getByJob(job) match {
+            case Some(factory) =>
+              factory.requestOTP(creds.phone)
+            case _ =>
+              401
           }
         }
       }
   } ~
-    (path("otp-login" / Segment) & post) {
-      case "manager" =>
+    (path("otp-login" / Segment) & post) { job =>
         entity(as[Creds]) { creds =>
           complete {
-            ManagerUser.find(creds) match {
-              case Some(user) if user.verifyOTP =>
-                success(user)
-              case _ => 401
+            UserRouter.getByJob(job) match {
+              case Some(factory) =>
+                factory.verifyOTP(creds) match {
+                  case Some(user) => user.jwt
+                  case _ => 401
+                }
+              case _ =>
+                401
             }
           }
         }
     } ~
-    (path("key-login" / Segment) & post) {
-      case Jobs.chefs =>
-        println("In chefs...")
-        entity(as[APIKey]) { apiKey =>
-          complete {
-            ChefUser.findAndVerify(apiKey) match {
-              case Some(user) =>
-               success(user)
-              case None => 401
-            }
+    (path("key-login" / Segment) & post) { job =>
+      entity(as[APIKey]) { apiKey =>
+        complete {
+          UserRouter.getByJob(job) match {
+            case Some(factory) =>
+              factory.findAndVerify(apiKey) match {
+                case Some(user) =>
+                  success(user)
+                case _ => 401
+              }
+            case _ => 401
           }
         }
-      case Jobs.apiers =>
-        entity(as[APIKey]) { apiKey =>
-          complete {
-            APIUser.findAndVerify(apiKey) match {
-              case Some(user) =>
-                success(user)
-              case None => 401
-            }
-          }
-        }
-      case _ => complete(400, "Incorrect business job")
+      }
     }
 }

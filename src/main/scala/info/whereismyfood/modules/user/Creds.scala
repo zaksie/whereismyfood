@@ -17,7 +17,9 @@ private object CredsLogger{
   val log = LoggerFactory.getLogger("Creds")
 }
 
-final case class APIKey(key: String, uuid: String)
+final case class APIKey(key: String, uuid: String){
+  def fkey = key.toUpperCase
+}
 final case class Creds(phone: String, uuid: Option[String] = None, var otp: Option[String] = None,
                        name: Option[String] = None, email: Option[String] = None, address: Option[String] = None){
 

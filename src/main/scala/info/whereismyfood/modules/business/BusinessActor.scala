@@ -1,0 +1,24 @@
+package info.whereismyfood.modules.business
+
+import akka.actor.{Actor, ActorLogging, Props}
+import info.whereismyfood.modules.geo.{GeoMySQLInterface, LatLng}
+import spray.json._
+
+import concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
+import scala.concurrent.duration._
+/**
+  * Created by zakgoichman on 12/23/16.
+  */
+case class GetBusinessesNearMe(latLng: LatLng)
+object BusinessModule{
+  val props = Props[BusinessActor]
+}
+class BusinessActor extends Actor with ActorLogging {
+  override def receive = {
+    case GetBusinessesNearMe(position) =>
+      import info.whereismyfood.modules.business.BusinessPublicJsonSupport._
+      val res = GeoMySQLInterface.findBusinessesNearMe(position)(50000*1000) map(_.toJson.compactPrint)
+      sender ! Await.result[String](res, 30 seconds)
+  }
+}

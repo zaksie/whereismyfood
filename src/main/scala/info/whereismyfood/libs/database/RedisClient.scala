@@ -49,7 +49,7 @@ class RedisClient private {
     redisTransaction.exec()
   }
 
-  def retrieve[T <: KVStorable](keys: String*)(implicit bsd: ByteStringDeserializer[T]): Future[Seq[T]] = {
+  def retrieve[T](keys: String*)(implicit bsd: ByteStringDeserializer[T]): Future[Seq[T]] = {
     redis.mget[T](keys: _*).map(_.flatten)
   }
 

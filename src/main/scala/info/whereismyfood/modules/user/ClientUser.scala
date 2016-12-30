@@ -12,9 +12,25 @@ import info.whereismyfood.modules.user.Roles.RoleID
 
 object ClientUser extends GenericUserTrait[ClientUser]{
   override def role: RoleID = Roles.client
-  def jobInBusiness: Business.JobInBusiness = Business.Jobs.none
+  def jobInBusiness: Business.JobInBusiness = Business.Jobs.clients
   override def of(creds: Creds) = ClientUser(creds)
   override protected def userActorFactory = Some(ClientUserActor)
+  override def requestOTP(phone: String): Boolean = {
+    of(Creds(phone)).requestOTP()
+  }
+  override def verifyOTP(creds: Creds): Option[ClientUser] = {
+    val user = of(creds)
+    user.verifyOTP match {
+      case true =>
+        find(user.phone) match {
+          case existingUser@Some(_) =>
+            existingUser
+          case _ => Some(user)
+        }
+      case _ => None
+    }
+  }
+
 }
 
 final case class ClientUser(private val creds: Creds)

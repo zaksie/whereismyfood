@@ -4,10 +4,13 @@ import com.google.maps.model.EncodedPolyline
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.MyConfig.Vars
 import info.whereismyfood.libs.database.Databases
+import info.whereismyfood.modules.business.BusinessPublic
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
+import scala.collection.JavaConverters._
 /**
   * Created by zakgoichman on 11/17/16.
   */
@@ -21,7 +24,7 @@ object GeoMySQLInterface {
   implicit def stringToEscapedString(s: String) = EscapedString(s)
   def saveAddressAndLocation(addresses: Address*): Future[Boolean] = {
     def createQueries(address: Address): Seq[String] = {
-      val point = s"""POINT(${address.latLng.lat},${address.latLng.lng})"""
+      val point = s"""POINT(${address.latLng.lng},${address.latLng.lat})"""
       val q1 = s"""INSERT IGNORE INTO $schema.locations (location) VALUES ($point)"""
       val q2 = s"""INSERT IGNORE INTO $schema.addresses (id, address)
                    | SELECT id, ${address.raw.escape} FROM $schema.locations WHERE location=$point""".stripMargin
@@ -128,8 +131,8 @@ object GeoMySQLInterface {
 
   def findNear(latLng: LatLng)(implicit radius_meter: Long = Vars.nearby_meter): Future[Option[Long]] ={
     val query =
-      s"""SELECT id FROM $schema.locations WHERE ST_Distance_Sphere(location, Point(${latLng.lat},${latLng.lng})) < $radius_meter
-         |ORDER BY St_distance_sphere(location, Point(${latLng.lat},${latLng.lng})) ASC
+      s"""SELECT id FROM $schema.locations WHERE ST_Distance_Sphere(location, Point(${latLng.lng},${latLng.lat})) < $radius_meter
+         |ORDER BY St_distance_sphere(location, Point(${latLng.lng},${latLng.lat})) ASC
        """.stripMargin
     Future{
       try{
@@ -145,9 +148,38 @@ object GeoMySQLInterface {
       }
     }
   }
+
+  def findBusinessesNearMe(me: LatLng)(implicit radius_meter: Long = Vars.nearby_meter): Future[Set[BusinessPublic]] = {
+    val query =
+      s"""SELECT *, ST_X(location), ST_Y(location) FROM $schema.businesses WHERE ST_Distance_Sphere(location, Point(${me.lng},${me.lat})) < $radius_meter
+         |ORDER BY St_distance_sphere(location, Point(${me.lng},${me.lat})) ASC
+       """.stripMargin
+    Future{
+      try{
+        val res = Databases.sql.createStatement().executeQuery(query)
+        val resultSet = collection.mutable.Set[BusinessPublic]()
+        while(res.next()) {
+          resultSet += BusinessPublic(
+            res.getLong("id"),
+            res.getString("name"),
+            res.getString("image"),
+            res.getDouble("rating"),
+            res.getString("main_menu"),
+            LatLng(res.getDouble(7), res.getDouble(8))
+          )
+        }
+        resultSet.toSet
+      }catch{
+        case e:Exception =>
+          log.error(s"Failed to execute sql query: $query [{}]", e)
+          Set()
+      }
+    }
+  }
+
   def saveDistances(from: LatLng, to: LatLng, distance_meter: Long, distance_sec: Long): Future[Boolean] = {
-    val fromPoint = s"""POINT(${from.lat},${from.lng})"""
-    val toPoint = s"""POINT(${to.lat},${to.lng})"""
+    val fromPoint = s"""POINT(${from.lng},${from.lat})"""
+    val toPoint = s"""POINT(${to.lng},${to.lat})"""
     val query =
       s"""INSERT IGNORE INTO $schema.distances (from_id, to_id, distance_meter, distance_sec)
           | SELECT id, (SELECT id FROM $schema.locations WHERE location = $toPoint),
@@ -165,8 +197,8 @@ object GeoMySQLInterface {
     }
   }
   def savePolyline(from: LatLng, to: LatLng, x: EncodedPolyline) = {
-    val fromPoint = s"""POINT(${from.lat},${from.lng})"""
-    val toPoint = s"""POINT(${to.lat},${to.lng})"""
+    val fromPoint = s"""POINT(${from.lng},${from.lat})"""
+    val toPoint = s"""POINT(${to.lng},${to.lat})"""
     val query =
       s"""UPDATE $schema.distances SET route = ${x.getEncodedPath.escape}
           | WHERE from_id=(SELECT id FROM $schema.locations WHERE location = $fromPoint)

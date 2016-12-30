@@ -2,13 +2,12 @@ package info.whereismyfood.routes.api.v1.ws
 
 import akka.NotUsed
 import akka.actor.{ActorRef, PoisonPill}
-import akka.http.scaladsl.model.ws.{BinaryMessage, Message, TextMessage}
+import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.modules.user.UserActorUtils._
-import info.whereismyfood.modules.user._
 import info.whereismyfood.modules.user.{Creds, UserRouter}
 
 /**
@@ -62,7 +61,8 @@ object Join {
         UserRouter.getByJob(job) match {
           case Some(userFactory) =>
             userFactory.createWebSocketActor(creds) match {
-              case Some(userActor) => join(userActor)
+              case Some(userActor) =>
+                join(userActor)
               case _ => ignore
             }
           case _ => ignore

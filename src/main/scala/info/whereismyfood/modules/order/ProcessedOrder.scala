@@ -25,9 +25,12 @@ object ProcessedOrder{
   type OrderStatus = String
 
   case object OrderStatuses {
-    def isReady(o: ProcessedOrder): Boolean = o.status == READY
+    def isReady(o: ProcessedOrder): Boolean = o.status == READY || o.ready
     def isEnroute(o: ProcessedOrder): Boolean = o.status == ENROUTE
-    def isOpen(o: ProcessedOrder): Boolean = o.status == PREPARING || o.status == READY
+    def notYetShipped(o: ProcessedOrder): Boolean = o.status == PREPARING || o.status == READY
+    def isOpen(o: ProcessedOrder): Boolean = o.status == OPEN
+
+    val OPEN = "open"
     val PREPARING = "preparing"
     val READY = "ready"
     val ENROUTE = "enroute"
@@ -120,7 +123,7 @@ object ProcessedOrder{
   }
 
   def saveSingle(order: ProcessedOrder): Boolean = {
-    Await.result(Databases.inmemory.save(30 day, (order.key, order)), 30 seconds)
+    Await.result(Databases.inmemory.save[ProcessedOrder](30 day, (order.key, order)), 30 seconds)
     //TODO: check if redis indeed saves
     true
   }
@@ -164,8 +167,9 @@ case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client:
   def demand: Int = contents.size
 
   import ProcessedOrder._
-  def geoid = client.geoaddress match {
+  def geoid: String = client.geoaddress match {
     case Some(addr) => addr.geoid
+    case _ => ""
   }
   override def asDatastoreEntity: Option[FullEntity[_]] = {
     val key = datastore.newKeyFactory().setKind(kind).newKey(businessId + id)
@@ -187,7 +191,7 @@ case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client:
   }
 
   override def key: String = ProcessedOrder.getKey(businessId, id)
-  def copyWithReady(ready: Boolean): ProcessedOrder = this.copy(ready = ready)//, contents = contents.map(_.copy(ready = Some(ready))))
+  def copyWithReady(ready: Boolean): ProcessedOrder = this.copy(ready = ready, status = OrderStatuses.READY)//, contents = contents.map(_.copy(ready = Some(ready))))
 }
 
 object ProcessedOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {

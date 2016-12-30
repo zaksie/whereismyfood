@@ -26,10 +26,10 @@ object LatLng extends DefaultJsonProtocol with SprayJsonSupport{
     LatLng(coords(0), coords(1))
   }.toOption
 
-  implicit val credsFormatter = jsonFormat(LatLng.apply, "lat", "lng")
+  implicit val latlngFormatter = jsonFormat(LatLng.apply, "lat", "lng")
 }
 case class LatLng(lat: Double, lng: Double){
-  def isValid: Boolean = Math.abs(lat) <= 180 && Math.abs(lng) <= 90
+  def isValid: Boolean = Math.abs(lat) <= 85 && Math.abs(lng) <= 180
 
   def this(latLng: GoogleLatLng) = this(latLng.lat, latLng.lng)
   def this(latLng: DSLatLng) = this(latLng.getLatitude, latLng.getLongitude)

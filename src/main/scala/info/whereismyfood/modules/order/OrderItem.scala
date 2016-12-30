@@ -10,11 +10,11 @@ object OrderItemCompanion {
   val kind = "OrderItem"
 }
 case class Price(humanReadable: String, value: Double, currency: String)
-case class OrderItem(name: String, image: String, description: String,
+case class OrderItem(id: String, title: String, image: String, description: String,
                      notes: String, price: Price) extends DatastoreStorable with KVStorable{
 
   import OrderItemCompanion._
-  override def asDatastoreEntity: Option[FullEntity[_]] = {
+  override def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]] = {
     val key = datastore.newKeyFactory().setKind(kind).newKey()
     val entity = FullEntity.newBuilder(key)
     for (field <- this.getClass.getDeclaredFields) {
@@ -32,5 +32,5 @@ case class OrderItem(name: String, image: String, description: String,
     Some(entity.build()) //Some and not option so that hopefully this throws an exception if unable to build
   }
 
-  override def key = name
+  override def key: String = id
 }

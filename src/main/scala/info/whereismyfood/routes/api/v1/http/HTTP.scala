@@ -10,19 +10,20 @@ import info.whereismyfood.modules.user.{Creds, UserRouter}
 object HTTP {
   def routes(implicit creds: Creds) =
     OptRoute.routes ~
-      OrderRoutes.routes ~
-      ManagerRoutes.routes ~
-      (pathEndOrSingleSlash & get) {
-        complete(200)
-      } ~
-      (path("is" / Segment) & post) { job =>
-        complete {
-          UserRouter.getByJob(job) match {
-            case Some(userCompObj) =>
-              userCompObj.handshake(creds)
-            case _ =>
-              400
+        OrderRoutes.routes ~
+        BusinessRoutes.routes ~
+        ManagerRoutes.routes ~
+        (pathEndOrSingleSlash & get) {
+          complete(200)
+        } ~
+        (path("is" / Segment) & post) { job =>
+          complete {
+            UserRouter.getByJob(job) match {
+              case Some(userCompObj) =>
+                userCompObj.handshake(creds)
+              case _ =>
+                400
+            }
           }
         }
-      }
 }

@@ -23,7 +23,7 @@ object Address extends DefaultJsonProtocol with SprayJsonSupport{
   val _raw = "raw"
 
   def empty = Address(LatLng(0,0))
-  implicit val credsFormatter = jsonFormat(Address.apply, "latLng", "raw")
+  implicit val addressFormatter = jsonFormat(Address.apply, "latLng", "raw")
 
   def of(addressOption: Option[String]): Option[Address] = {
     addressOption match {

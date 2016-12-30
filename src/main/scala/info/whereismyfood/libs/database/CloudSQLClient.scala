@@ -22,13 +22,16 @@ object CloudSQLClient {
     databaseName,
     instanceConnectionName);
 
-  private def createConnection = DriverManager.getConnection(jdbcUrl, username, password)
+  private val url =
+    s"""jdbc:mysql://104.199.69.216/whereismyfood?user=$username
+       |&password=$password""".stripMargin
+  private def createConnection = DriverManager.getConnection(url, username, password)
   private var connection = createConnection
 
   def createStatement(): Statement = try{
     connection.createStatement()
   }catch{
-    case e: SQLException =>
+    case _: SQLException =>
       connection = createConnection
       connection.createStatement()
   }

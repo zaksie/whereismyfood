@@ -16,11 +16,37 @@ object MyConfig {
     inst.getInt(key)
   }
 
+  val production: Boolean = get("server.env").startsWith("prod")
+
   object Topics{
-    val courierGeolocation = "courier-geolocation:"
-    val clientUpdates = "client-updates:"
-    val courierUpdates = "courier-updates:"
-    val chefUpdates = "chef-updates:"
+    type ID = String
+    def courierIsOffline(implicit id: ID = "") = "courier-offline:" + id
+    def courierIsOnline(implicit id: ID = "") = "courier-online:"+ id
+    def courierGeolocation(implicit id: ID = "") = "courier-geolocation:"+ id
+    def clientUpdates(implicit id: ID = "") = "client-updates:"+ id
+    def courierUpdates(implicit id: ID = "") = "courier-updates:"+ id
+    def chefUpdates(implicit id: ID = "") = "chef-updates:"+ id
+  }
+
+  object OpCodes{
+    object Chef {
+      val enroute = "enroute"
+      val add = "add"
+      val modify = "modify"
+      val delete = "delete"
+    }
+
+    object Client {
+      val added = "added"
+      val enroute = "enroute"
+      def courierPosition(courierId: String): String = "courier/position:" + courierId
+    }
+
+    object Courier {
+      val pickup = "pickup"
+      //TODO: currently not in use
+      def clientPosition(clientId: String): String = "client/position:" + clientId
+    }
   }
   object Vars {
     val recent_minutes = 5

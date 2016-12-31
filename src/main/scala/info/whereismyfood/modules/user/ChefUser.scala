@@ -26,7 +26,8 @@ object ChefUser extends GenericUserTrait[ChefUser]{
 
 final case class ChefUser(private val creds: Creds)
   extends GenericUser(creds){
-  def jobInBusiness: Business.JobInBusiness = ChefUser.jobInBusiness
+  override def compobj = ChefUser
+  //def jobInBusiness: Business.JobInBusiness = ChefUser.jobInBusiness
 
   override def getOTPBody(code: String*): String = ???
 

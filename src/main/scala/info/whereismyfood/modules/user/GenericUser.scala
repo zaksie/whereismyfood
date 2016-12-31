@@ -79,7 +79,7 @@ trait GenericUserTrait[T <: GenericUser]{
 
   protected def datastore = Databases.persistent.client
   protected val log = LoggerFactory.getLogger("GenericUser")
-  protected val USER_KIND = "User"
+  val kind: String = "User"
 
   def role: RoleID
   def jobInBusiness: JobInBusiness
@@ -170,7 +170,7 @@ trait GenericUserTrait[T <: GenericUser]{
   def of(creds: Creds): T
 
   def getFromDatastore(phone: String): Option[T] = {
-    val key = datastore.newKeyFactory().setKind(USER_KIND).newKey(phone)
+    val key = datastore.newKeyFactory().setKind(kind).newKey(phone)
     Try {
       of {
         datastore.get(key, ReadOption.eventualConsistency)
@@ -201,13 +201,14 @@ abstract class GenericUser(private val creds: Creds)
   }
   def jwt = Login.createToken(this)
 
-  def jobInBusiness: Business.JobInBusiness
+  def compobj: GenericUserTrait[_]
+  def jobInBusiness: Business.JobInBusiness = compobj.jobInBusiness
   def address = addressOptionProcessed
   def phone: String = creds.phone
   def name: Option[String] = creds.name
   def email: Option[String] = creds.email
   def deviceId: Option[String] = creds.deviceId
-  def role: RoleID = creds.role
+  def role: RoleID = if(creds.role != Roles.unknown) creds.role else compobj.role
   def businessIds: Set[Long] = creds.businessIds
   def verified: Boolean = creds.verified
   def image: Option[String] = creds.image

@@ -8,10 +8,12 @@ import info.whereismyfood.aux.MyConfig.{ActorNames, Topics}
 import ProcessedOrder.OrderStatuses
 import info.whereismyfood.modules.business.{BusinessSingleton, OnOrderMarkChange, ReadyToShipOrders}
 import info.whereismyfood.modules.geo.GeoMySQLInterface
+import info.whereismyfood.modules.menu.{Dish, DishToAdd}
 import info.whereismyfood.modules.user._
 
 import scala.util.Try
-
+import concurrent.Future
+import concurrent.ExecutionContext.Implicits.global
 
 /**
   * Created by zakgoichman on 10/24/16.
@@ -19,13 +21,12 @@ import scala.util.Try
 
 object OrderModule {
   case class AddOrders(orders: Orders)
-  case class ModifyOrders(orders: Orders)
   case class DeleteOrders(businessId: Long, orderId: String)
   case class MarkOrdersReady(businessId: Long, orderId: String, mark: Boolean)
   case class GetOpenOrders(businessId: Long)
   case class GetEnrouteOrders(businessId: Long)
-  case class GetOpenOrderForUser(businessId: Long, creds: Creds)
-  case class PutOrderItemForUser(businessId: Long, creds: Creds, item: OrderItem)
+  case class GetOpenOrderForUser(creds: Creds)
+  case class PutOrderItemForUser(creds: Creds, item: DishToAdd)
   case class DeleteOrderItemForUser(businessId: Long, creds: Creds, itemId: String)
 
   def props = Props[OrderActor]
@@ -51,8 +52,6 @@ class OrderActor extends Actor with ActorLogging {
       sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isEnroute)
     case AddOrders(orders) =>
       sender ! addOrders(orders)
-    case ModifyOrders(orders) =>
-      sender ! modifyOrders(orders)
     case x: DeleteOrders =>
       sender ! deleteOrder(x)
     case x: MarkOrdersReady =>
@@ -66,12 +65,22 @@ class OrderActor extends Actor with ActorLogging {
 
   }
 
-  def getOpenOrderForUser(x: GetOpenOrderForUser): Option[OpenOrder] = {
-    OpenOrder.retrieve(x.businessId, x.creds.phone)
+  def getOpenOrderForUser(x: GetOpenOrderForUser): Seq[OpenOrder] = {
+    OpenOrder.retrieveBy(x.creds.phone)
   }
 
-  def putOpenOrderForUser(x: PutOrderItemForUser): Boolean = {
-    OpenOrder.addItem(x.businessId, x.creds.phone, x.item)
+  def putOpenOrderForUser(x: PutOrderItemForUser): Option[OrderItem] = {
+    Dish.find(x.item.businessId, x.item.dishId) match {
+      case Some(dish) =>
+        OrderItem.of(dish, x.item) match {
+          case Some(orderItem) =>
+            Future(OpenOrder.addItem(x.creds.phone, orderItem))
+            Some(orderItem)
+          case _ => None
+        }
+      case _ =>
+        None
+    }
   }
 
   def deleteOpenOrderForUser(x: DeleteOrderItemForUser): Boolean = {
@@ -91,30 +100,24 @@ class OrderActor extends Actor with ActorLogging {
     true
   }
 
-  def addOrders(orders: Orders): Boolean =
+  def addOrders(orders: Orders): Seq[ProcessedOrder] =
       ProcessedOrder.allIdsUnique(orders) match {
-        case false => false
+        case false => Seq()
         case _ => processOrder(orders, AddProcessedOrders)
       }
 
-  def modifyOrders(orders: Orders): Boolean =
-      ProcessedOrder.noIdsUnique(orders) match {
-        case false => false
-        case _ => processOrder(orders, ModifyProcessedOrders)
-      }
-
-  def processOrder(orders: Orders, op: Seq[ProcessedOrder] => OpProcessedOrders): Boolean = {
+  def processOrder(orders: Orders, op: Seq[ProcessedOrder] => OpProcessedOrders): Seq[ProcessedOrder] = {
     try {
       implicit val businessId = orders.businessId
       val processedOrders = orders.orders map formatOrder
       saveLocation(processedOrders)
       saveProcessedOrders(processedOrders)
       mediator ! Publish(Topics.chefUpdates + orders.businessId, op(processedOrders))
-      true
+      processedOrders
     } catch {
       case e: Exception =>
         log.error("Failed in processNewOrChangedOrders {}", e)
-        false
+        Seq()
     }
   }
 

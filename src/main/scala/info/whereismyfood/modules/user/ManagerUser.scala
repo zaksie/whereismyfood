@@ -26,7 +26,8 @@ object ManagerUser extends GenericUserTrait[ManagerUser]{
 
 final case class ManagerUser(private val creds: Creds)
   extends GenericUser(creds){
-  def jobInBusiness: Business.JobInBusiness = ManagerUser.jobInBusiness
+  override def compobj = ManagerUser
+  //def jobInBusiness: Business.JobInBusiness = ManagerUser.jobInBusiness
 
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
 

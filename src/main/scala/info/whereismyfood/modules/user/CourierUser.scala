@@ -34,14 +34,15 @@ object CourierUser extends GenericUserTrait[CourierUser]{
     }
   }
   def getIdsFromDB(ids: Set[String]): Seq[CourierUser] = {
-    val keys = ids.toSeq.map(id=>datastore.newKeyFactory().setKind(USER_KIND).newKey(id))
+    val keys = ids.toSeq.map(id=>datastore.newKeyFactory().setKind(kind).newKey(id))
     datastore.get(keys:_*).asScala.toSeq.flatMap(x=>CourierUser.of(x))
   }
   override protected def userActorFactory = Some(CourierUserActor)
 }
 
 final case class CourierUser(private val creds: Creds) extends GenericUser(creds){
-  def jobInBusiness: Business.JobInBusiness = CourierUser.jobInBusiness
+  override def compobj = CourierUser
+  //def jobInBusiness: Business.JobInBusiness = CourierUser.jobInBusiness
   def toCourierJson: CourierJson = CourierJson(name, phone, image, vehicleType)
   def toCourierJsonOption: Option[CourierJson] = Some(toCourierJson)
 

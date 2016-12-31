@@ -10,8 +10,12 @@ import scala.concurrent.duration._
   * Created by zakgoichman on 10/30/16.
   */
 class RedisClient private {
-  val _3_HOURS = 60*60*3L
-  def addToSet(expiry: Duration, key: String, items: String*): Future[MultiBulk] = {
+  import ActorSystemContainer.Implicits._
+  import concurrent.ExecutionContext.Implicits.global
+
+  private val redis = RedisClientLib(MyConfig.get("redis.host"), MyConfig.getInt("redis.port"), Some(MyConfig.get("redis.pwd")))
+
+  def addToSet[T](expiry: Duration, key: String, items: T*)(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
     val redisTransaction = redis.transaction() // new TransactionBuilder
     redisTransaction.watch(key) // watch for changes to key
     redisTransaction.sadd(key, items: _*)
@@ -19,22 +23,17 @@ class RedisClient private {
     redisTransaction.exec()
   }
 
-  def delFromSet(key:String, items: String*): Future[MultiBulk] = {
+  def delFromSet[T](key:String, items: T*)(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
     val redisTransaction = redis.transaction() // new TransactionBuilder
     redisTransaction.watch(key) // watch for changes to key
     redisTransaction.srem(key, items: _*)
     redisTransaction.exec()
   }
 
-  def retrieveSet(key: String): Future[Seq[String]] = {
-    redis.smembers[String](key)
+  def retrieveSet[T](key: String)(implicit bsd: ByteStringDeserializer[T]): Future[Seq[T]] = {
+    redis.smembers[T](key)
   }
 
-  implicit val system = ActorSystemContainer.getSystem
-  implicit val materializer = ActorSystemContainer.getMaterializer
-  implicit val executionContext = system.dispatcher
-
-  private val redis = RedisClientLib(MyConfig.get("redis.host"), MyConfig.getInt("redis.port"), Some(MyConfig.get("redis.pwd")))
 
   def saveSeq[T <: KVStorable](expiry: Duration, items: Seq[T])(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
     save(expiry, items.map(x=>(x.key, x)):_*)

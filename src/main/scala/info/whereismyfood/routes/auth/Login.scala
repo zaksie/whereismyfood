@@ -22,6 +22,7 @@ object Login extends Directives with AuthenticationHandler {
 
   def routes =
     (path("request-otp" / Segment) & post) { job =>
+      println("job: " + job)
       entity(as[Creds]) { creds =>
         complete {
           UserRouter.getByJob(job) match {
@@ -32,7 +33,7 @@ object Login extends Directives with AuthenticationHandler {
           }
         }
       }
-  } ~
+    } ~
     (path("otp-login" / Segment) & post) { job =>
         entity(as[Creds]) { creds =>
           complete {

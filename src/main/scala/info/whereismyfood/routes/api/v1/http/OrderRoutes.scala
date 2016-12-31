@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import akka.pattern.ask
+import info.whereismyfood.modules.menu.{DishToAdd, DishToRemove}
 import info.whereismyfood.modules.user.{APIUser, Creds, Roles, UserRouter}
 import info.whereismyfood.modules.order.OrderModule._
 import info.whereismyfood.modules.order._
@@ -32,11 +33,14 @@ object OrderRoutes {
               case true =>
                 orders.isValid match {
                   case OrderError.OK =>
-                    Await.result(orderActorRef ? AddOrders(orders), resolveTimeout.duration) match {
-                      case true =>
-                        complete(200)
-                      case _ =>
+                    Await.result(orderActorRef ? AddOrders(orders), resolveTimeout.duration)
+                      .asInstanceOf[Seq[ProcessedOrder]] match {
+                      case Seq() =>
                         complete(HttpResponse(status = 400, entity = "Order put request contains already existing order ids"))
+                      case processedOrders =>
+                        println("yay!!")
+                        import ProcessedOrderJsonSupport._
+                        complete(processedOrders.toJson.compactPrint)
                     }
                   case OrderError(err) =>
                     complete(HttpResponse(status = 400, entity = err))
@@ -45,21 +49,6 @@ object OrderRoutes {
             }
           }
         } ~
-            patch {
-              entity(as[Orders]) { orders =>
-                log.info("In /orders PATCH")
-                Roles.isauthorized(modify, orders.businessId) match {
-                  case false => complete(403)
-                  case true =>
-                    Await.result(orderActorRef ? ModifyOrders(orders), resolveTimeout.duration) match {
-                      case true =>
-                        complete(200)
-                      case _ =>
-                        complete(HttpResponse(status = 400, entity = "Order patch request contains non-existing order ids"))
-                    }
-                }
-              }
-            } ~
             get {
               log.info("In /orders GET")
               Roles.isauthorized(view, creds.businessIds.head) match {
@@ -106,26 +95,29 @@ object OrderRoutes {
           }
         }
       } ~
-      pathPrefix("open" / "this-user" / LongNumber) { businessId =>
+      pathPrefix("open" / "this-user") {
         (get & pathEndOrSingleSlash) {
-          log.info(s"GET In /orders/open/this-user[${creds.phone}]/businessId[$businessId]")
-          Await.result(orderActorRef ? GetOpenOrderForUser(businessId, creds), resolveTimeout.duration)
-              .asInstanceOf[Option[OpenOrder]] match {
-            case Some(order) =>
+          log.info(s"GET In /orders/open/this-user[${creds.phone}]")
+          Await.result(orderActorRef ? GetOpenOrderForUser(creds), resolveTimeout.duration)
+              .asInstanceOf[Seq[OpenOrder]] match {
+            case Seq() => complete("[]")
+            case orders =>
               import OpenOrderJsonSupport._
-              complete(order.toJson.compactPrint)
-            case _ => complete(404)
+              complete(orders.toJson.compactPrint)
           }
         } ~
-        pathPrefix("item") {
+        pathPrefix(LongNumber / "item") { businessId =>
           (put & pathEndOrSingleSlash) {
-            import OrderJsonSupport._
-            entity(as[OrderItem]) { item =>
+            import info.whereismyfood.modules.menu.DishJsonSupport._
+            entity(as[DishToAdd]) { item =>
               log.info(s"PUT In /orders/open/this-user[${creds.phone}]/businessId[$businessId]")
-              if (Await.result(orderActorRef ? PutOrderItemForUser(businessId, creds, item), resolveTimeout.duration)
-                  .asInstanceOf[Boolean]) {
-                complete(200)
-              } else complete(400)
+              Await.result(orderActorRef ? PutOrderItemForUser(creds, item), resolveTimeout.duration)
+                  .asInstanceOf[Option[OrderItem]] match {
+                case Some(res) =>
+                  import OrderItemJsonSupport._
+                  complete(res.toJson.compactPrint)
+                case _ => complete(400)
+              }
             }
           } ~
           (delete & path(Segment)) { itemId =>

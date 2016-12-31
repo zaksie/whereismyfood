@@ -25,17 +25,19 @@ object ClientUser extends GenericUserTrait[ClientUser]{
         find(user.phone) match {
           case existingUser@Some(_) =>
             existingUser
-          case _ => Some(user)
+          case _ =>
+            user.creds.setVerified(true)
+            Some(user.save)
         }
       case _ => None
     }
   }
-
 }
 
 final case class ClientUser(private val creds: Creds)
   extends GenericUser(creds){
-  def jobInBusiness: Business.JobInBusiness = ClientUser.jobInBusiness
+  override def compobj = ClientUser
+  //def jobInBusiness: Business.JobInBusiness = ClientUser.jobInBusiness
 
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
 

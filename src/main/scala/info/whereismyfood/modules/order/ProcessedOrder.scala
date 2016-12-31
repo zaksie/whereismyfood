@@ -55,7 +55,7 @@ object ProcessedOrder{
   val _route = "route"
 
   def of(order: Order)(implicit businessId: Long): ProcessedOrder = {
-    ProcessedOrder(businessId, order.id, order.timestamp, order.client, order.contents)
+    ProcessedOrder(businessId, order.id, order.timestamp, order.client, order.contents.flatMap(_.toOrderItem))
   }
 
   implicit val byteStringFormatter = new ByteStringFormatter[ProcessedOrder] {
@@ -134,7 +134,7 @@ object ProcessedOrder{
   }
 
   def retrieveAllActive(businessId: Long): Seq[ProcessedOrder] = {
-    val processedOrders = Databases.inmemory.retrieveSet(getSetKey(businessId)).flatMap{
+    val processedOrders = Databases.inmemory.retrieveSet[String](getSetKey(businessId)).flatMap{
       case Seq() => Future.successful(Seq())
       case orderKeys => Databases.inmemory.retrieve[ProcessedOrder](orderKeys:_*)
     }
@@ -162,7 +162,7 @@ object ProcessedOrder{
 
 case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client: Creds, contents: Seq[OrderItem],
                           ready: Boolean = false, courier: Option[CourierJson] = None,
-                          status: OrderStatus = OrderStatuses.PREPARING, route: Option[DeliveryRoute] = None)
+                          status: OrderStatus = OrderStatuses.OPEN, route: Option[DeliveryRoute] = None)
     extends DatastoreStorable with KVStorable{
   def demand: Int = contents.size
 
@@ -195,7 +195,7 @@ case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client:
 }
 
 object ProcessedOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
-  import OrderJsonSupport._
+  import OrderItemJsonSupport._
   import info.whereismyfood.modules.geo.DeliveryRouteJsonSupport._
   import info.whereismyfood.modules.user.CredsJsonSupport._
   implicit val courierJsonFormatter = jsonFormat(CourierJson.apply, "name", "phone", "image", "vehicleType")

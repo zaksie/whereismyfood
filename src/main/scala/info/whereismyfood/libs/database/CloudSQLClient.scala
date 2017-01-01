@@ -22,8 +22,9 @@ object CloudSQLClient {
     databaseName,
     instanceConnectionName);
 
+  val ip = MyConfig.get("google.cloudsql.ip")
   private val url =
-    s"""jdbc:mysql://104.199.69.216/whereismyfood?user=$username
+    s"""jdbc:mysql://$ip/whereismyfood?user=$username
        |&password=$password""".stripMargin
   private def createConnection = DriverManager.getConnection(url, username, password)
   private var connection = createConnection

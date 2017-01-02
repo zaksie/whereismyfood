@@ -225,7 +225,7 @@ abstract class GenericUser(private val creds: Creds)
   }
 
   def save: this.type ={
-    saveToDatastore
+    saveToDatastore()
     this
   }
 

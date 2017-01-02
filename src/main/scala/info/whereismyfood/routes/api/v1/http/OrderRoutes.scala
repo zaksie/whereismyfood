@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import akka.pattern.ask
-import info.whereismyfood.modules.menu.{DishToAdd, DishToRemove}
 import info.whereismyfood.modules.user.{APIUser, Creds, Roles, UserRouter}
 import info.whereismyfood.modules.order.OrderModule._
 import info.whereismyfood.modules.order._
@@ -92,40 +91,6 @@ object OrderRoutes {
                 val ok = Await.result(orderActorRef ? MarkOrdersReady(businessId, mark.orderId, mark.ready), resolveTimeout.duration).asInstanceOf[Boolean]
                 complete(if (ok) 200 else 400)
             }
-          }
-        }
-      } ~
-      pathPrefix("open" / "this-user") {
-        (get & pathEndOrSingleSlash) {
-          log.info(s"GET In /orders/open/this-user[${creds.phone}]")
-          Await.result(orderActorRef ? GetOpenOrderForUser(creds), resolveTimeout.duration)
-              .asInstanceOf[Seq[OpenOrder]] match {
-            case Seq() => complete("[]")
-            case orders =>
-              import OpenOrderJsonSupport._
-              complete(orders.toJson.compactPrint)
-          }
-        } ~
-        pathPrefix(LongNumber / "item") { businessId =>
-          (put & pathEndOrSingleSlash) {
-            import info.whereismyfood.modules.menu.DishJsonSupport._
-            entity(as[DishToAdd]) { item =>
-              log.info(s"PUT In /orders/open/this-user[${creds.phone}]/businessId[$businessId]")
-              Await.result(orderActorRef ? PutOrderItemForUser(creds, item), resolveTimeout.duration)
-                  .asInstanceOf[Option[OrderItem]] match {
-                case Some(res) =>
-                  import OrderItemJsonSupport._
-                  complete(res.toJson.compactPrint)
-                case _ => complete(400)
-              }
-            }
-          } ~
-          (delete & path(Segment)) { itemId =>
-            log.info(s"DELETE In /orders/open/this-user[${creds.phone}]/businessId[$businessId]/itemId[$itemId]")
-            if (Await.result(orderActorRef ? DeleteOrderItemForUser(businessId, creds, itemId), resolveTimeout.duration)
-                .asInstanceOf[Boolean]) {
-              complete(200)
-            } else complete(400)
           }
         }
       }

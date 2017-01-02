@@ -4,6 +4,8 @@ package info.whereismyfood.libs.database
 import com.google.cloud.datastore.{DatastoreOptions, Entity, FullEntity}
 import org.slf4j.LoggerFactory
 
+import scala.util.Try
+
 /**
   * Created by zakgoichman on 10/23/16.
   */
@@ -23,11 +25,18 @@ object DatastoreClient{
 
 trait DatastoreStorable {
   protected def datastore = DatastoreClient.instance.client
-  def saveToDatastore: Option[Entity] = {
+  def saveToDatastore(): Option[Entity] = {
     asDatastoreEntity match {
       case Some(record) =>
         Option(datastore.put(record))
       case _ => None
+    }
+  }
+  def removeFromDatastore(): Boolean = {
+    asDatastoreEntity match {
+      case Some(record) =>
+        Try(datastore.delete(record.getKey(""))).isSuccess
+      case _ => false
     }
   }
   def asDatastoreEntity: Option[FullEntity[_]]

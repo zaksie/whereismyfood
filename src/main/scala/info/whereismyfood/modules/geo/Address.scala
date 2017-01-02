@@ -65,7 +65,7 @@ case class Address(latLng: LatLng, raw: String = "") extends DatastoreStorable{
       entity.getString(Address._raw))
   }
 
-  override def saveToDatastore = throw new UnsupportedOperationException
+  override def saveToDatastore() = throw new UnsupportedOperationException
 
   override def asDatastoreEntity: Option[FullEntity[_]] = {
     val key = datastore.newKeyFactory().setKind(kind).newKey()

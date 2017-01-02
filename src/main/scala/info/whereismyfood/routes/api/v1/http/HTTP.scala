@@ -11,6 +11,7 @@ object HTTP {
   def routes(implicit creds: Creds) =
     OptRoute.routes ~
         OrderRoutes.routes ~
+        OpenOrderRoutes.routes ~
         BusinessRoutes.routes ~
         ManagerRoutes.routes ~
         (pathEndOrSingleSlash & get) {

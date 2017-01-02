@@ -4,6 +4,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.util.ByteString
 import boopickle.Default._
 import com.google.cloud.datastore.{Entity, EntityValue, FullEntity, PathElement}
+import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable, KVStorable}
 import info.whereismyfood.libs.math.Misc
 import info.whereismyfood.modules.user.{ClientUser, Creds}
@@ -55,24 +56,25 @@ object OpenOrder{
 
   def save(order: OpenOrder): Boolean = {
     Try {
-      val orderId = order.key
-      val key = getKey(order.client.phone)
-      Databases.inmemory.addToSet(30 days, key, orderId)
-      Databases.inmemory.save[OpenOrder](30 days, (orderId, order))
-      Future(order.saveToDatastore match {
+      Databases.inmemory.save[OpenOrder](MyConfig.getInt("params.days-to-save-order") days, (order.key, order))
+      Future(order.saveToDatastore() match {
           case None => throw new Exception("couldn't save open order")
           case _ => None
         })
       }.isSuccess
   }
 
-  def retrieveBy(phone: String): Seq[OpenOrder] = {
-    val name = getKey(phone)
-    Await.result[Seq[String]](Databases.inmemory.retrieveSet[String](name), 30 seconds) match {
-      case Seq() => Seq()
-      case orderIds =>
-        Await.result[Seq[OpenOrder]](Databases.inmemory.retrieve[OpenOrder](orderIds: _*), 30 seconds)
-    }
+  def delete(order: OpenOrder): Boolean = {
+    Try {
+      Databases.inmemory.delete(order.key)
+      //The order itself is not deleted. it expires.
+      Future(if(order.removeFromDatastore()) throw new Exception("couldn't remove item from open order"))
+    }.isSuccess
+  }
+
+  def retrieveBy(phone: String): Option[OpenOrder] = {
+    val key = getKey(phone)
+    Await.result[Seq[OpenOrder]](Databases.inmemory.retrieve[OpenOrder](key), 30 seconds).headOption
   }
 
   def addItem(phone: String, item: OrderItem): Boolean = {
@@ -85,27 +87,26 @@ object OpenOrder{
       }
 
     retrieveBy(phone) match {
-      case Seq() => findUserAndSaveOrder
-      case orders =>
-        orders.find(_.businessId == item.dish.businessId) match{
-          case Some(order) =>
-            save(order.copy(contents = order.contents :+ item))
-          case _ =>
-            findUserAndSaveOrder
-        }
+      case Some(order) if order.businessId == item.dish.businessId =>
+        save(order.copy(contents = order.contents :+ item))
+      case None =>
+        findUserAndSaveOrder
+      case _ =>
+        false
     }
   }
 
-  def removeItem(businessId: Long, phone: String, itemId: String): Boolean = {
+  def removeItem(phone: String, itemId: String): Boolean = {
     retrieveBy(phone) match {
-      case Seq() => false
-      case orders =>
-        orders.find(_.businessId == businessId) match{
-          case Some(order) =>
-            val new_order = order.copy(contents = order.contents.filterNot(_.id == itemId))
+      case Some(order) if order.contents.exists(_.id == itemId) =>
+        order.copy(contents = order.contents.filterNot(_.id == itemId)) match {
+          case new_order if new_order.contents.size < 1 =>
+            delete(new_order)
+          case new_order =>
             save(new_order)
-          case _ => false
         }
+      case _ =>
+        false
     }
   }
 }
@@ -113,7 +114,7 @@ object OpenOrder{
 case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, contents: Seq[OrderItem])
     extends DatastoreStorable with KVStorable{
   import OpenOrder._
-  override def key: String = contents.head.id
+  override def key: String = getKey(client.phone)
   override def asDatastoreEntity: Option[FullEntity[_]] = {
     val clientParent = PathElement.of(ClientUser.kind, client.phone)
     val _key = datastore.newKeyFactory().addAncestor(clientParent).setKind(kind).newKey(this.key)

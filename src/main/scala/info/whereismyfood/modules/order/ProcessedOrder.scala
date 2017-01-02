@@ -114,7 +114,7 @@ object ProcessedOrder{
       Databases.inmemory.addToSet(30 day, getSetKey(businessId), inmemoryIds.map(_._1):_*)
 
       order.par.foreach { o =>
-        o.saveToDatastore match {
+        o.saveToDatastore() match {
           case None => throw new Exception("couldn't save all orders")
           case _ => None
         }

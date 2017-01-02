@@ -55,6 +55,10 @@ class RedisClient private {
   def retrieve(key: String): Future[Option[String]] = {
     redis.get[String](key)
   }
+
+  def delete(key: String): Future[Long] = {
+    redis.del(key)
+  }
 }
 
 object RedisClient{

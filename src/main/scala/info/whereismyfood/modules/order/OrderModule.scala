@@ -27,7 +27,7 @@ object OrderModule {
   case class GetEnrouteOrders(businessId: Long)
   case class GetOpenOrderForUser(creds: Creds)
   case class PutOrderItemForUser(creds: Creds, item: DishToAdd)
-  case class DeleteOrderItemForUser(businessId: Long, creds: Creds, itemId: String)
+  case class DeleteOrderItemForUser(creds: Creds, itemId: String)
 
   def props = Props[OrderActor]
 
@@ -65,7 +65,7 @@ class OrderActor extends Actor with ActorLogging {
 
   }
 
-  def getOpenOrderForUser(x: GetOpenOrderForUser): Seq[OpenOrder] = {
+  def getOpenOrderForUser(x: GetOpenOrderForUser): Option[OpenOrder] = {
     OpenOrder.retrieveBy(x.creds.phone)
   }
 
@@ -84,7 +84,7 @@ class OrderActor extends Actor with ActorLogging {
   }
 
   def deleteOpenOrderForUser(x: DeleteOrderItemForUser): Boolean = {
-    OpenOrder.removeItem(x.businessId, x.creds.phone, x.itemId)
+    OpenOrder.removeItem(x.creds.phone, x.itemId)
   }
 
   def markOrder(x: MarkOrdersReady): Boolean = {

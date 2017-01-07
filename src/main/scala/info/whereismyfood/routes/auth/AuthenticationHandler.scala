@@ -6,10 +6,9 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives.FutureDirectives
-import akka.http.scaladsl.server.directives.FutureDirectives.{onComplete => _, _}
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import info.whereismyfood.modules.user.{Creds, GenericUser, Roles}
+import info.whereismyfood.modules.user.{ClientUser, Creds, GenericUser, Roles}
 import io.igl.jwt.{Aud, _}
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, JsNumber, JsString, JsValue}
@@ -36,6 +35,8 @@ object Role extends ClaimField {
 
 trait AuthenticationHandler {
   val log = LoggerFactory.getLogger("AuthenticationHandler")
+
+  val GUEST = "guest"
 
   val ISS_NAME = "whereismyfood"
   val ALGO = Algorithm.HS512
@@ -86,6 +87,10 @@ trait AuthenticationHandler {
   }
 
   private def checkJwtToken(token: String): Directive1[Creds] ={
+    if(token.startsWith(GUEST)){
+      return provide((ClientUser getOrCreate token).toCreds())
+    }
+
     val parsed = decodeJwt(token)
     if (parsed.isFailure) {
       complete(401)
@@ -111,7 +116,7 @@ trait AuthenticationHandler {
       }
     }
   }
-  val jwtRegex = """"jwt":\s*"(.*?)"""".r
+  private val jwtRegex = """"jwt":\s*"(.*?)"""".r
 
   private def extractJwt(data: String): String ={
     jwtRegex findFirstIn data match{

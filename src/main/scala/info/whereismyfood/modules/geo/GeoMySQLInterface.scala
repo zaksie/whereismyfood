@@ -1,6 +1,7 @@
 package info.whereismyfood.modules.geo
 
 import com.google.maps.model.EncodedPolyline
+import com.mysql.jdbc.CommunicationsException
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.MyConfig.Vars
 import info.whereismyfood.libs.database.Databases
@@ -9,7 +10,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-
 import scala.collection.JavaConverters._
 /**
   * Created by zakgoichman on 11/17/16.
@@ -164,12 +164,15 @@ object GeoMySQLInterface {
             res.getString("name"),
             res.getString("image"),
             res.getDouble("rating"),
+            res.getInt("raters"),
             res.getString("main_menu"),
-            LatLng(res.getDouble(7), res.getDouble(8))
+            LatLng(res.getDouble(8), res.getDouble(9))
           )
         }
         resultSet.toSet
       }catch{
+        case e: CommunicationsException =>
+          Set()
         case e:Exception =>
           log.error(s"Failed to execute sql query: $query [{}]", e)
           Set()

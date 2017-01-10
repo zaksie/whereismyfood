@@ -2,6 +2,7 @@ package info.whereismyfood.routes.internal
 
 import akka.http.scaladsl.server.Directives._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
+import info.whereismyfood.aux.MyConfig
 
 /**
   * Created by zakgoichman on 10/20/16.
@@ -13,7 +14,13 @@ object Internal {
       extractHost {
         case "localhost" =>
           println("is localhost!")
-          Menu.routes
+          parameter('secret){
+            case x if x == MyConfig.get("internal.secret") =>
+              Menu.routes
+            case _ =>
+              println("Invalid INTERNAL SECRET !!!")
+              complete(403)
+          }
         case other =>
           println(other)
           complete(403)

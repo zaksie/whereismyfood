@@ -1,22 +1,21 @@
 package info.whereismyfood.routes.api.v1.http
 
 
-import akka.http.scaladsl.model.Multipart.BodyPart
 import akka.http.scaladsl.model.Multipart
+import akka.http.scaladsl.model.Multipart.BodyPart
 import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.stream.scaladsl.StreamConverters
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.libs.storage.GoogleStorageClient
-import info.whereismyfood.modules.user.{Creds, Roles}
 import info.whereismyfood.modules.business.{AdminUserAssets, Business}
 import info.whereismyfood.modules.courier.CourierModule.AddCourier
 import info.whereismyfood.modules.user.{CourierJson, Creds, Roles}
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 
@@ -101,7 +100,7 @@ object ManagerRoutes {
               case Some(id) =>
                 if (!creds.businessIds.contains(id)) complete(403)
                 else {
-                  Business.removeJobFrom(phone, id, Business.Jobs.couriers)
+                  Business.removeJobFrom(phone, id, Business.DSTypes.couriers)
                   complete(200)
                 }
               case _ =>

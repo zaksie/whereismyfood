@@ -4,7 +4,7 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.modules.business.Business
-import info.whereismyfood.modules.business.Business.Jobs
+import info.whereismyfood.modules.business.Business.DSTypes
 import info.whereismyfood.modules.user._
 import info.whereismyfood.modules.user._
 

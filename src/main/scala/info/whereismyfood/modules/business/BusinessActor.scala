@@ -2,6 +2,7 @@ package info.whereismyfood.modules.business
 
 import akka.actor.{Actor, ActorLogging, Props}
 import info.whereismyfood.modules.geo.{GeoMySQLInterface, LatLng}
+import info.whereismyfood.modules.user.Roles
 import spray.json._
 
 import concurrent.ExecutionContext.Implicits.global
@@ -17,8 +18,8 @@ object BusinessModule{
 class BusinessActor extends Actor with ActorLogging {
   override def receive = {
     case GetBusinessesNearMe(position) =>
-      import info.whereismyfood.modules.business.BusinessPublicJsonSupport._
-      val res = GeoMySQLInterface.findBusinessesNearMe(position)(50000*1000) map(_.toJson.compactPrint)
+      import info.whereismyfood.modules.business.BusinessJsonSupport._
+      val res = GeoMySQLInterface.findBusinessesNearMe(position)(50000*1000) map(_.map(_.filterForRole(Roles.client)).toJson.compactPrint)
       sender ! Await.result[String](res, 30 seconds)
   }
 }

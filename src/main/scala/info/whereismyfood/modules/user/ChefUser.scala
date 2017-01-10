@@ -20,7 +20,7 @@ object ChefUser extends GenericUserTrait[ChefUser]{
       case _ => None
     }
   }
-  def jobInBusiness: Business.JobInBusiness = Business.Jobs.chefs
+  def jobInBusiness: Business.JobInBusiness = Business.DSTypes.chefs
   override protected def userActorFactory = Some(ChefUserActor)
 }
 

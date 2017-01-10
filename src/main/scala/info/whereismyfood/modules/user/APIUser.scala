@@ -15,7 +15,7 @@ object APIUser extends GenericUserTrait[APIUser]{
   override def isAuthorized(user: GenericUser): Boolean = {
     (user.role & role) != 0
   }
-  def jobInBusiness: Business.JobInBusiness = Business.Jobs.apiers
+  def jobInBusiness: Business.JobInBusiness = Business.DSTypes.apiers
   override protected def userActorFactory = None
 }
 

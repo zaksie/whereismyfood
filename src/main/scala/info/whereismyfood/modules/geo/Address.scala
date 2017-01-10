@@ -15,7 +15,11 @@ import scala.concurrent.{Await, Future}
 /**
   * Created by zakgoichman on 11/4/16.
   */
-object Address extends DefaultJsonProtocol with SprayJsonSupport{
+
+object AddressJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
+  implicit val addressFormatter = jsonFormat(Address.apply, "latLng", "raw")
+}
+object Address{
   private val log = LoggerFactory.getLogger(this.getClass)
 
   val kind = "Address"
@@ -23,7 +27,6 @@ object Address extends DefaultJsonProtocol with SprayJsonSupport{
   val _raw = "raw"
 
   def empty = Address(LatLng(0,0))
-  implicit val addressFormatter = jsonFormat(Address.apply, "latLng", "raw")
 
   def of(addressOption: Option[String]): Option[Address] = {
     addressOption match {

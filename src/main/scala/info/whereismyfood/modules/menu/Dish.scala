@@ -48,10 +48,10 @@ case class Price(humanReadable: String, value: Double, currency: String) extends
 
 object Dish {
   object FieldNames {
-    val _title = "title"
-    val _description = "description"
-    val _image = "image"
-    val _price = "price"
+    val title = "title"
+    val description = "description"
+    val image = "image"
+    val price = "price"
   }
 
   protected def datastore: Datastore = Databases.persistent.client
@@ -72,15 +72,51 @@ object Dish {
       import FieldNames._
         Dish(entity.getKey.getId,
           entity.getKey.getParent.getId,
-          entity.getString(_title),
-          entity.getString(_image),
-          entity.getString(_description),
-          Price.of(entity.getEntity(_price)))
+          entity.getString(title),
+          entity.getString(image),
+          entity.getString(description),
+          Price.of(entity.getEntity(price)))
     }.toOption
   }
 
   def find(businessId: Long, dishId: Long): Option[Dish] = {
     getFromDatastore(businessId, dishId)
+  }
+
+  def addOrChange(dish: Dish): Boolean = {
+    import FieldNames._
+    log.info("Saving dish to datastore")
+    try {
+      val ancestor = PathElement.of(Business.kind, dish.businessId)
+      val keyBase = datastore.newKeyFactory().setKind(kind).addAncestor(ancestor)
+      val key = if (dish.id > 0) keyBase.newKey(dish.id) else keyBase.newKey()
+      val entity = FullEntity.newBuilder(key)
+          .set(title, dish.title)
+          .set(image, dish.image)
+          .set(description, dish.description)
+          .set(price, dish.price.asDatastoreEntity.get)
+          .build
+      datastore.put(entity)
+      true
+    }catch{
+      case e: Throwable =>
+        log.error("Failed to add or change dish", e)
+        false
+    }
+  }
+
+  def remove(dish: Dish): Boolean = {
+    log.info("Removing dish from datastore")
+    try {
+      val ancestor = PathElement.of(Business.kind, dish.businessId)
+      val key = datastore.newKeyFactory().setKind(kind).addAncestor(ancestor).newKey(dish.id)
+      datastore.delete(key)
+      true
+    }catch{
+      case e: Throwable =>
+        log.error("Failed to remove dish", e)
+        false
+    }
   }
 
   val kind = "Dish"

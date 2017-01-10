@@ -61,7 +61,7 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
   case object NoAvailableCouriers
   import BusinessSingleton._
   private val name = getName(business.id)
-  private val origin = business.address.latLng
+  private val origin = business.info.address.latLng
   //TODO: put these below to good use
   private var latestSolution: Any = _
   private var latestHash: Int = 0

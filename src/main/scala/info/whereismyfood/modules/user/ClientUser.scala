@@ -19,7 +19,7 @@ object ClientUser extends GenericUserTrait[ClientUser]{
   }
 
   override def role: RoleID = Roles.client
-  def jobInBusiness: Business.JobInBusiness = Business.Jobs.clients
+  def jobInBusiness: Business.JobInBusiness = Business.DSTypes.clients
   override def of(creds: Creds) = ClientUser(creds)
   override protected def userActorFactory = Some(ClientUserActor)
   override def requestOTP(phone: String): Boolean = {

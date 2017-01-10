@@ -7,6 +7,8 @@ import ch.megard.akka.http.cors.{CorsDirectives, CorsSettings}
 import info.whereismyfood.routes.api.v1.ApiV1Router
 import info.whereismyfood.routes.auth.AuthRouter
 import info.whereismyfood.aux.ActorSystemContainer.Implicits.Int2String
+import info.whereismyfood.routes.internal.Internal
+
 import scala.collection.immutable
 
 /**
@@ -23,6 +25,7 @@ object Routes {
     cors(settings) {
           welcome ~
           healthCheck ~
+          Internal.routes ~
           AuthRouter.routes ~
           ApiV1Router.routes
     }

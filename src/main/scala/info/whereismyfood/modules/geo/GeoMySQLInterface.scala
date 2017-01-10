@@ -5,12 +5,11 @@ import com.mysql.jdbc.CommunicationsException
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.MyConfig.Vars
 import info.whereismyfood.libs.database.Databases
-import info.whereismyfood.modules.business.BusinessPublic
+import info.whereismyfood.modules.business.{Business, BusinessLocation}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.collection.JavaConverters._
 /**
   * Created by zakgoichman on 11/17/16.
   */
@@ -149,27 +148,21 @@ object GeoMySQLInterface {
     }
   }
 
-  def findBusinessesNearMe(me: LatLng)(implicit radius_meter: Long = Vars.nearby_meter): Future[Set[BusinessPublic]] = {
+  def findBusinessesNearMe(me: LatLng)(implicit radius_meter: Long = Vars.nearby_meter): Future[Set[Business]] = {
     val query =
-      s"""SELECT *, ST_X(location), ST_Y(location) FROM $schema.businesses WHERE ST_Distance_Sphere(location, Point(${me.lng},${me.lat})) < $radius_meter
+      s"""SELECT id, ST_X(location), ST_Y(location) FROM $schema.businesses WHERE ST_Distance_Sphere(location, Point(${me.lng},${me.lat})) < $radius_meter
          |ORDER BY St_distance_sphere(location, Point(${me.lng},${me.lat})) ASC
        """.stripMargin
     Future{
       try{
         val res = Databases.sql.createStatement().executeQuery(query)
-        val resultSet = collection.mutable.Set[BusinessPublic]()
+        val resultSet = collection.mutable.Set[BusinessLocation]()
         while(res.next()) {
-          resultSet += BusinessPublic(
-            res.getLong("id"),
-            res.getString("name"),
-            res.getString("image"),
-            res.getDouble("rating"),
-            res.getInt("raters"),
-            res.getString("main_menu"),
-            LatLng(res.getDouble(8), res.getDouble(9))
+          resultSet += BusinessLocation(
+            res.getLong("id")
           )
         }
-        resultSet.toSet
+        Business.get(resultSet.map(_.id).toSeq:_*).toSet
       }catch{
         case e: CommunicationsException =>
           Set()

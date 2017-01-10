@@ -1,28 +1,24 @@
 package info.whereismyfood.routes.api.v1.http
 
-import java.io.FileNotFoundException
-
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Directives._
+import akka.pattern.ask
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import info.whereismyfood.modules.business.GetBusinessesNearMe
+import info.whereismyfood.modules.business.{Business, GetBusinessesNearMe}
 import info.whereismyfood.modules.geo.Coords
-import info.whereismyfood.modules.user.{Creds, Roles}
+import info.whereismyfood.modules.user.Creds
 import org.slf4j.LoggerFactory
+import spray.json._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import akka.pattern.ask
-import info.whereismyfood.routes.api.v1.http.templates.MenuTemplate
 /**
   * Created by zakgoichman on 10/21/16.
   */
-object BusinessRoutes {
+object BusinessRoutes{
   val log = LoggerFactory.getLogger(this.getClass)
   val businessActorRef = Await.result(system.actorSelection("/user/modules/business").resolveOne(), resolveTimeout.duration)
 
   def routes(implicit creds: Creds) = {
-    import Roles.api.business._
     pathPrefix("businesses") {
       (post & path("near")) {
         import info.whereismyfood.modules.geo.CoordsJsonSupport._
@@ -32,8 +28,23 @@ object BusinessRoutes {
           complete(res)
         }
       } ~
-      (get & path("menu" / LongNumber)) { id =>
-        complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,MenuTemplate(id).html))
+      path(LongNumber){ id =>
+          get{
+            Business.get(id) match {
+              case Seq() =>
+                println("ERROR!")
+                complete(404)
+              case businesses =>
+                import info.whereismyfood.modules.business.BusinessJsonSupport._
+                println("OK!")
+                println(businesses.head)
+                val filteredBusiness = businesses.head.filterForRole(creds.role)
+                complete(filteredBusiness.toJson.compactPrint)
+            }
+          } ~
+        path("menu") {
+          complete(404)
+        }
       }
     }
   }

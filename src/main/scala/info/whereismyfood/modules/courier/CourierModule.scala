@@ -4,7 +4,6 @@ import akka.actor.{Actor, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.util.Timeout
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.modules.user.{CourierJson, Creds}
 import info.whereismyfood.modules.business.Business
 import info.whereismyfood.modules.user.{CourierJson, CourierUser, Creds}
 
@@ -36,7 +35,7 @@ class CourierActor extends Actor {
       else CourierUser.of(courier, businessId) match {
         case user: CourierUser =>
           user.save
-          sender ! Business.addJobTo(courier.phone, businessId, Business.Jobs.couriers)
+          sender ! Business.addJobTo(courier.phone, businessId, Business.DSTypes.couriers)
         case _ => sender ! false
       }
   }

@@ -13,7 +13,7 @@ import scala.concurrent.duration._
   */
 case class GetBusinessesNearMe(latLng: LatLng)
 object BusinessModule{
-  val props = Props[BusinessActor]
+  def props = Props[BusinessActor]
 }
 class BusinessActor extends Actor with ActorLogging {
   override def receive = {

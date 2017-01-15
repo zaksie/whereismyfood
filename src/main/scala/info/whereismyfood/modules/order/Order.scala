@@ -11,12 +11,12 @@ import spray.json.DefaultJsonProtocol
 /**
   * Created by zakgoichman on 11/8/16.
   */
-case class Order(id: String, client: Creds, contents: Seq[DishToAdd]) {
+case class Order(id: String, businessId: Long, client: Creds, deliveryType: String, contents: Seq[DishToAdd]) {
   val timestamp: Long = ZonedDateTime.now(ZoneOffset.UTC).toEpochSecond
 }
 
 object OrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import info.whereismyfood.modules.user.CredsJsonSupport._
   import info.whereismyfood.modules.menu.DishJsonSupport._
-  implicit val newOrderFormat = jsonFormat(Order, "id", "client", "contents")
+  implicit val newOrderFormat = jsonFormat(Order, "id", "businessId", "client", "deliveryType", "contents")
 }

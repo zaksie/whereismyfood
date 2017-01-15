@@ -3,12 +3,13 @@ package info.whereismyfood.routes.auth
 import java.util.concurrent.TimeUnit
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.directives.FutureDirectives
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import info.whereismyfood.modules.user.{ClientUser, Creds, GenericUser, Roles}
+import info.whereismyfood.modules.user._
 import io.igl.jwt.{Aud, _}
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, JsNumber, JsString, JsValue}
@@ -56,11 +57,18 @@ trait AuthenticationHandler {
   }
 
   def createToken(account: GenericUser): String = {
+      createToken(account.phone,
+        account.deviceId.get,
+        account.businessIds,
+        account.role)
+  }
+
+  def createToken(userId: String, uuid: String, businessIds: Set[Long], role: Long): String = {
     val jwt = new DecodedJwt(ENCRYPTION,
-      Seq(Iss(account.phone),
-        Uuid(account.deviceId.get),
-        Busid(account.businessIds),
-        Aud(account.role.toString)))
+      Seq(Iss(userId),
+        Uuid(uuid),
+        Busid(businessIds),
+        Aud(role.toString)))
     jwt.encodedAndSigned(SECRET)
   }
 
@@ -99,6 +107,12 @@ trait AuthenticationHandler {
       try {
         val phone = parsed.get.getClaim[Iss].get.value
         val uuid = parsed.get.getClaim[Uuid].get.value
+        if(false)
+        UserRouter.getJwtFor(phone) match {
+          case Some(jwt) if jwt != token =>
+              return complete(HttpResponse(StatusCodes.UpgradeRequired, entity = jwt))
+          case _ =>
+        }
         val busid = parsed.get.getClaim[Busid].get.value
         val role = parsed.get.getClaim[Aud].get.value match {
           case Left(x) => Roles(x)

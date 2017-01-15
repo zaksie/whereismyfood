@@ -53,6 +53,7 @@ object ProcessedOrder{
   val _status = "status"
   val _courierPhone = "courierPhone"
   val _route = "route"
+  val _deliveryType = "deliveryType"
 
   def of(order: Order)(implicit businessId: Long): ProcessedOrder = {
     ProcessedOrder(businessId, order.id, order.timestamp, order.client, order.contents.flatMap(_.toOrderItem))
@@ -135,11 +136,13 @@ object ProcessedOrder{
 
   def retrieveAllActive(businessId: Long): Seq[ProcessedOrder] = {
     val processedOrders = Databases.inmemory.retrieveSet[String](getSetKey(businessId)).flatMap{
-      case Seq() => Future.successful(Seq())
+      case Seq() =>
+        println("bug #1: in retrieveAllActive")
+        Future.successful(Seq())
       case orderKeys => Databases.inmemory.retrieve[ProcessedOrder](orderKeys:_*)
     }
 
-    Await.result[Seq[ProcessedOrder]](processedOrders, 30 seconds)
+    Await.result[Seq[ProcessedOrder]](processedOrders, 15 seconds)
   }
 
   def mark(businessId: Long, orderId: String, ready: Boolean): Boolean ={
@@ -162,6 +165,7 @@ object ProcessedOrder{
 
 case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client: Creds, contents: Seq[OrderItem],
                           ready: Boolean = false, courier: Option[CourierJson] = None,
+                          deliveryType: String = DeliveryTypes.sitin,
                           status: OrderStatus = OrderStatuses.OPEN, route: Option[DeliveryRoute] = None)
     extends DatastoreStorable with KVStorable{
   def demand: Int = contents.size
@@ -185,6 +189,7 @@ case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client:
     if(courier.isDefined)
       entity.set(_courierPhone, courier.get.phone)
     entity.set(_status, status)
+    entity.set(_deliveryType, deliveryType)
     entity.set(_route, route.getOrElse(DeliveryRoute.empty).polyline)
 
     Option(entity.build())
@@ -200,5 +205,5 @@ object ProcessedOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSuppo
   import info.whereismyfood.modules.user.CredsJsonSupport._
   implicit val courierJsonFormatter = jsonFormat(CourierJson.apply, "name", "phone", "image", "vehicleType")
   implicit val formatter = jsonFormat(ProcessedOrder.apply, "businessId", "id", "timestamp",
-    "client", "contents", "ready", "courier", "status", "route")
+    "client", "contents", "ready", "courier", "deliveryType", "status", "route")
 }

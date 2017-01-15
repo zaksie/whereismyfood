@@ -55,10 +55,12 @@ object MyConfig {
   }
   object ActorNames{
     object Paths{
-      val businessManager = "/user/cluster-node/" + get("actor-names.business-manager")
+      val businessManager = "/user/cluster-node/" + Bare.businessManager
+      val jwtToRedisJob = "/user/cluster-node/" + Bare.jwtToRedisJob
     }
     object Bare{
       val businessManager = get("actor-names.business-manager")
+      val jwtToRedisJob = get("actor-names.jwt-to-redis-job")
     }
   }
 }

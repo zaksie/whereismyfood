@@ -1,7 +1,7 @@
 package info.whereismyfood.libs.database
 
 
-import com.google.cloud.datastore.{DatastoreOptions, Entity, FullEntity}
+import com.google.cloud.datastore.{DatastoreOptions, Entity, FullEntity, IncompleteKey}
 import org.slf4j.LoggerFactory
 
 import scala.util.Try
@@ -39,7 +39,7 @@ trait DatastoreStorable {
       case _ => false
     }
   }
-  def asDatastoreEntity: Option[FullEntity[_]]
+  def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]]
 }
 
 trait DatastoreFetchable[E] {

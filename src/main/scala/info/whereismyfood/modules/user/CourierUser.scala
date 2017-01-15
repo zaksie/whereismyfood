@@ -33,8 +33,8 @@ object CourierUser extends GenericUserTrait[CourierUser]{
         }
     }
   }
-  def getIdsFromDB(ids: Set[String]): Seq[CourierUser] = {
-    val keys = ids.toSeq.map(id=>datastore.newKeyFactory().setKind(kind).newKey(id))
+  def getById(ids: String*): Seq[CourierUser] = {
+    val keys = ids.map(id=>datastore.newKeyFactory().setKind(kind).newKey(id))
     datastore.get(keys:_*).asScala.toSeq.flatMap(x=>CourierUser.of(x))
   }
   override protected def userActorFactory = Some(CourierUserActor)

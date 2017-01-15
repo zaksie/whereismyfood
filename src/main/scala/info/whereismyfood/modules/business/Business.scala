@@ -105,7 +105,13 @@ object Business extends DatastoreFetchable[Business] {
   }
 
   def getIdsFor(phone: String, jobInBusiness: JobInBusiness): Set[Long] = {
-    getEntitiesFor(phone, jobInBusiness).map(_.getKey.getId.toLong)
+    val gql = s"SELECT __key__ FROM ${Business.kind} WHERE $jobInBusiness CONTAINS @userId"
+    val q: Query[Key] = Query.newGqlQueryBuilder(Query.ResultType.KEY, gql)
+        .setBinding("userId", phone)
+        .build()
+
+    datastore.run(q, ReadOption.eventualConsistency())
+        .asScala.map(_.getId.toLong).toSet
   }
 
   def getAllFor(phone: String, jobInBusiness: JobInBusiness): Set[Business] = {

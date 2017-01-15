@@ -31,12 +31,16 @@ class CourierActor extends Actor {
 
   override def receive: Receive = {
     case AddCourier(courier, creds, businessId) =>
-      if(!creds.businessIds.contains(businessId)) sender ! false
-      else CourierUser.of(courier, businessId) match {
-        case user: CourierUser =>
-          user.save
+      CourierUser.find(courier.phone) match {
+        case Some(_) =>
           sender ! Business.addJobTo(courier.phone, businessId, Business.DSTypes.couriers)
-        case _ => sender ! false
+        case _ =>
+          CourierUser.of(courier, businessId) match {
+            case user: CourierUser =>
+              user.save
+              sender ! Business.addJobTo(courier.phone, businessId, Business.DSTypes.couriers)
+            case _ => sender ! false
+          }
       }
   }
 }

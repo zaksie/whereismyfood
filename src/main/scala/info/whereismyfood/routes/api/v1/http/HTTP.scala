@@ -2,8 +2,7 @@ package info.whereismyfood.routes.api.v1.http
 
 import akka.http.scaladsl.server.Directives._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import info.whereismyfood.modules.user._
-import info.whereismyfood.modules.user.{Creds, UserRouter}
+import info.whereismyfood.modules.user.Creds
 /**
   * Created by zakgoichman on 10/20/16.
   */
@@ -14,17 +13,9 @@ object HTTP {
         OpenOrderRoutes.routes ~
         BusinessRoutes.routes ~
         ManagerRoutes.routes ~
+        MenuRoutes.routes ~
+        UserRoutes.routes ~
         (pathEndOrSingleSlash & get) {
           complete(200)
-        } ~
-        (path("is" / Segment) & post) { job =>
-          complete {
-            UserRouter.getByJob(job) match {
-              case Some(userCompObj) =>
-                userCompObj.handshake(creds)
-              case _ =>
-                400
-            }
-          }
         }
 }

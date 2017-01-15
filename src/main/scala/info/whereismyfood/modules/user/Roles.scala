@@ -7,7 +7,6 @@ import scala.util.Try
   */
 
 object Roles {
-
   type RoleID = Long
   private def role(index: Long): Long = 1L << index
 
@@ -41,28 +40,30 @@ object Roles {
   def apply(str: String): RoleID = str.toLong
   def apply(strs: Seq[String]): RoleID = strs map(_.toLong) reduce(_ | _)
 
-  def isManager(role: Long):Boolean = {
+  def isManager(role: RoleID):Boolean = {
     (role & manager) != 0
   }
-  def isChef(role: Long):Boolean = {
+  def isChef(role: RoleID):Boolean = {
     (role & chef) != 0
   }
-  def isCourier(role: Long):Boolean = {
+  def isCourier(role: RoleID):Boolean = {
     (role & courier) != 0
   }
-  def isClient(role: Long):Boolean = {
+  def isClient(role: RoleID):Boolean = {
     (role & client) != 0
   }
+
+  def isMaster(role: RoleID) = role == MAX
 
   def isauthorized(role: RoleID)(implicit creds: Creds): Boolean = {
     (creds.role & role) != 0
   }
 
-  def isauthorized(role: RoleID, businessId: Long)(implicit creds: Creds): Boolean ={
+  def isauthorized(role: RoleID, businessId: Long*)(implicit creds: Creds): Boolean ={
     Try{
       (creds.role & role) != 0 &&
         (creds.role == Roles.api.master ||
-          creds.businessIds.contains(businessId))
+          creds.businessIds.intersect(businessId.toSet).nonEmpty)
     }.getOrElse(false)
   }
 }

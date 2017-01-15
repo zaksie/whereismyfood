@@ -6,17 +6,21 @@ import info.whereismyfood.modules.auth.VerifyPhoneModule
 import info.whereismyfood.modules.business.BusinessModule
 import info.whereismyfood.modules.courier.CourierModule
 import info.whereismyfood.modules.geo.OptRouteModule
+import info.whereismyfood.modules.menu.{DishModule, MenuModule}
 import info.whereismyfood.modules.order.OrderModule
 
 /**
   * Created by zakgoichman on 10/21/16.
   */
 class ModuleActors extends Actor {
-    context.actorOf(OptRouteModule.props.withRouter(RoundRobinPool(5)), name = "optroute")
-    context.actorOf(VerifyPhoneModule.props.withRouter(RoundRobinPool(5)), "request-verify-phone")
-    context.actorOf(OrderModule.props.withRouter(RoundRobinPool(5)), "order")
-    context.actorOf(BusinessModule.props.withRouter(RoundRobinPool(5)), "business")
-    context.actorOf(CourierModule.props.withRouter(RoundRobinPool(5)), "courier-action")
+    val size = 2
+    context.actorOf(OptRouteModule.props.withRouter(RoundRobinPool(size)), name = "optroute")
+    context.actorOf(VerifyPhoneModule.props.withRouter(RoundRobinPool(size)), "request-verify-phone")
+    context.actorOf(OrderModule.props.withRouter(RoundRobinPool(size)), "order")
+    context.actorOf(BusinessModule.props.withRouter(RoundRobinPool(size)), "business")
+    context.actorOf(CourierModule.props.withRouter(RoundRobinPool(size)), "couriers")
+    context.actorOf(DishModule.props.withRouter(RoundRobinPool(size)), "dishes")
+    context.actorOf(MenuModule.props.withRouter(RoundRobinPool(size)), "menus")
 
     override def receive: Receive = {
         case _ => throw new Exception("Invalid actor call")

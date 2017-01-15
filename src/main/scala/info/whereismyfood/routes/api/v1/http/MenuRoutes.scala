@@ -18,22 +18,34 @@ object MenuRoutes {
 
   def routes(implicit creds: Creds) = {
     pathPrefix("menus") {
-      path(LongNumber) { id =>
-        getMenu(id) ~
-        put {
-          entity(as[Menu]) { menu =>
-            if(Menu.addToDatastore(id, menu))
-              complete(200)
-            else complete(400)
-          }
+      path("id" / LongNumber) { id =>
+        get{
+          getMenu(id)
         }
+      } ~
+      path("business" / LongNumber) { id =>
+        get{
+          getMenuCovers(id)
+        }
+      }
+    }
+  }
+
+  def getMenuCovers(businessId: Long) ={
+    get {
+      println("In getMenuCovers")
+      Menu.getRecordsByBusinessId(businessId) match {
+        case Seq() =>
+          complete(404)
+        case menus =>
+          complete(menus.map(_.toJson.compactPrint).mkString("[", ",", "]"))
       }
     }
   }
 
   def getMenu(id: Long) = {
     get {
-      Menu.get(id) match {
+      Menu.find(id) match {
         case Some(menu) =>
           complete(menu.toJson.compactPrint)
         case _ =>

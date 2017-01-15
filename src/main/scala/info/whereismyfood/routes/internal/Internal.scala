@@ -16,7 +16,7 @@ object Internal {
           println("is localhost!")
           parameter('secret){
             case x if x == MyConfig.get("internal.secret") =>
-              Menu.routes
+              MenuRoutesInt.routes
             case _ =>
               println("Invalid INTERNAL SECRET !!!")
               complete(403)

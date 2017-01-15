@@ -6,17 +6,17 @@ import boopickle.Default._
 import com.google.cloud.datastore.{Entity, EntityValue, FullEntity, PathElement}
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable, KVStorable}
-import info.whereismyfood.libs.math.Misc
+import info.whereismyfood.modules.menu.DishToAdd
 import info.whereismyfood.modules.user.{ClientUser, Creds}
 import org.slf4j.LoggerFactory
 import redis.ByteStringFormatter
 import spray.json.DefaultJsonProtocol
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.Try
-import concurrent.ExecutionContext.Implicits.global
 /**
   * Created by zakgoichman on 11/8/16.
   */
@@ -28,6 +28,7 @@ object OpenOrder{
         Some(OpenOrder(businessId,
           System.currentTimeMillis / 1000,
           user.toCreds(),
+          DeliveryTypes.sitin, //this is determined only when order is placed and therefore is useless here
           Seq(item)))
       case _ => None
     }
@@ -41,6 +42,7 @@ object OpenOrder{
   val _orderId = "orderId"
   val _items = "items"
   val _clientPhone = "clientPhone"
+  val _deliveryType = "deliveryType"
 
   implicit val byteStringFormatter = new ByteStringFormatter[OpenOrder] {
     override def serialize(data: OpenOrder): ByteString = {
@@ -79,7 +81,7 @@ object OpenOrder{
 
   def addItem(phone: String, item: OrderItem): Boolean = {
     def findUserAndSaveOrder =
-      OpenOrder.of(item.dish.businessId, phone, item) match {
+      OpenOrder.of(item.businessId, phone, item) match {
         case Some(order) =>
           save(order)
         case _ =>
@@ -87,7 +89,7 @@ object OpenOrder{
       }
 
     retrieveBy(phone) match {
-      case Some(order) if order.businessId == item.dish.businessId =>
+      case Some(order) if order.businessId == item.businessId =>
         save(order.copy(contents = order.contents :+ item))
       case None =>
         findUserAndSaveOrder
@@ -109,9 +111,14 @@ object OpenOrder{
         false
     }
   }
+
+  def remove(phone: String): Unit = {
+    val key = getKey(phone)
+    Databases.inmemory.delete(key)
+  }
 }
 
-case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, contents: Seq[OrderItem])
+case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, deliveryType: String = DeliveryTypes.sitin, contents: Seq[OrderItem])
     extends DatastoreStorable with KVStorable{
   import OpenOrder._
   override def key: String = getKey(client.phone)
@@ -122,15 +129,20 @@ case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, contents:
     entity.set(_businessId, businessId)
     entity.set(_timestamp, timestamp)
     entity.set(_clientPhone, client.phone)
+    entity.set(_deliveryType, deliveryType)
     entity.set(_items, contents.map(x => new EntityValue(x.asDatastoreEntity.get)).asJava)
 
     Option(entity.build())
   }
+
+  def toOrder: Order = {
+    Order(key, businessId, client, deliveryType, contents.map(x=> DishToAdd(x.businessId, x.dish.id, x.notes)))
+  }
 }
 
 object OpenOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
-  import OrderItemJsonSupport._
   import info.whereismyfood.modules.user.CredsJsonSupport._
+  import OrderItemJsonSupport._
   implicit val formatter = jsonFormat(OpenOrder.apply, "businessId", "timestamp",
-    "client", "contents")
+    "client", "deliveryType", "contents")
 }

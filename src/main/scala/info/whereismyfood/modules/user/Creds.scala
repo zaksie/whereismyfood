@@ -22,7 +22,6 @@ final case class APIKey(key: String, uuid: String){
 }
 final case class Creds(phone: String, uuid: Option[String] = None, var otp: Option[String] = None,
                        name: Option[String] = None, email: Option[String] = None, address: Option[String] = None){
-
   private var __deviceId: Option[String] = None
   def setDeviceIdIfNone(deviceId: String) = __deviceId = Some(deviceId)
   def deviceId: Option[String] = __deviceId.orElse(uuid)
@@ -65,6 +64,11 @@ final case class Creds(phone: String, uuid: Option[String] = None, var otp: Opti
   def removeBusiness(businessId: RoleID) = {__businessIds -= businessId; this}
   def addRole(role: RoleID) = {__role |= role; this}
   def removeRole(role: RoleID) = {__role &= Roles.MAX - role; this}
+
+  def owns(businessIds: Long*): Boolean = Roles.isauthorized(role, businessIds:_*)(this) || Roles.isMaster(role)
+
+  def getInfoJson: String =
+    s"""{"name": "${name.getOrElse("")}", "image": "${image.getOrElse("")}", "role": $role}"""
 }
 
 object CredsJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {

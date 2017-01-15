@@ -1,16 +1,17 @@
 package info.whereismyfood.routes.api.v1.http
 
-import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
-import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-import org.slf4j.LoggerFactory
-
-import scala.concurrent.Await
 import akka.pattern.ask
-import info.whereismyfood.modules.user.{APIUser, Creds, Roles, UserRouter}
+import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.modules.order.OrderModule._
 import info.whereismyfood.modules.order._
+import info.whereismyfood.modules.user.{Creds, Roles}
+import org.slf4j.LoggerFactory
 import spray.json._
+import java.util.UUID
+
+import scala.concurrent.Await
 
 /**
   * Created by zakgoichman on 10/21/16.
@@ -28,27 +29,16 @@ object OrderRoutes {
           entity(as[Orders]) { orders =>
             log.info("In /orders PUT")
             Roles.isauthorized(add, orders.businessId) match {
-              case false => complete(403)
+              case false =>
+                if(clientOwnsOrder(orders.orders))
+                  complete(putOrders(orders))
+                else complete(403)
               case true =>
-                orders.isValid match {
-                  case OrderError.OK =>
-                    Await.result(orderActorRef ? AddOrders(orders), resolveTimeout.duration)
-                      .asInstanceOf[Seq[ProcessedOrder]] match {
-                      case Seq() =>
-                        complete(HttpResponse(status = 400, entity = "Order put request contains already existing order ids"))
-                      case processedOrders =>
-                        println("yay!!")
-                        import ProcessedOrderJsonSupport._
-                        complete(processedOrders.toJson.compactPrint)
-                    }
-                  case OrderError(err) =>
-                    complete(HttpResponse(status = 400, entity = err))
-                }
-
+                complete(putOrders(orders))
             }
           }
         } ~
-            get {
+        get {
               log.info("In /orders GET")
               Roles.isauthorized(view, creds.businessIds.head) match {
                 case false => complete(403)
@@ -93,7 +83,49 @@ object OrderRoutes {
             }
           }
         }
+      } ~
+      path("me"){
+        import OrderJsonSupport._
+        put {
+          entity(as[Order]) { order =>
+            val orders = Seq(order.copy(id=UUID.randomUUID.toString, client=creds))
+            if (clientOwnsOrder(orders))
+              putOrders(Orders(order.businessId, orders)) match {
+                case res if res.status == StatusCodes.OK =>
+                  removeOpenOrder(creds)
+                  complete(res)
+                case res =>
+                  complete(res)
+              }
+            else complete(403)
+          }
+        }
       }
     }
+  }
+
+  def putOrders(orders: Orders): HttpResponse = {
+    orders.isValid match {
+      case OrderError.OK =>
+        Await.result(orderActorRef ? AddOrders(orders), resolveTimeout.duration)
+            .asInstanceOf[Seq[ProcessedOrder]] match {
+          case Seq() =>
+            HttpResponse(status = 400, entity = "Order put request contains already existing order ids")
+          case processedOrders =>
+            println("yay!!")
+            import ProcessedOrderJsonSupport._
+            HttpResponse(entity = processedOrders.toJson.compactPrint)
+        }
+      case OrderError(err) =>
+        HttpResponse(status = 400, entity = err)
+    }
+  }
+
+  def clientOwnsOrder(orders: Seq[Order])(implicit creds: Creds): Boolean = {
+    orders.forall(x=>x.client.phone.isEmpty || x.client.phone == creds.phone)
+  }
+
+  def removeOpenOrder(creds: Creds) = {
+    OpenOrder.remove(creds.phone)
   }
 }

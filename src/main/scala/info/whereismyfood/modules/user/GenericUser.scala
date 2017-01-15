@@ -78,7 +78,7 @@ trait GenericUserTrait[T <: GenericUser]{
   }
 
   protected def datastore = Databases.persistent.client
-  protected val log = LoggerFactory.getLogger("GenericUser")
+  protected val log = LoggerFactory.getLogger("GenericUserTrait")
   val kind: String = "User"
 
   def role: RoleID
@@ -188,10 +188,36 @@ trait GenericUserTrait[T <: GenericUser]{
   }
 }
 
+object GenericUser{
+  val USER_KIND = "User"
+  protected val log = LoggerFactory.getLogger("GenericUser")
+
+  def getById(userId: String): Option[Creds] = {
+    try {
+      val client = Databases.persistent.client
+      val key = client.newKeyFactory().setKind(GenericUser.USER_KIND).newKey(userId)
+      val entity = Databases.persistent.client.get(key, ReadOption.eventualConsistency())
+      import FieldNames._
+      val c = Creds(userId,
+        Some(entity.getString(_deviceId)),
+        None,
+        Some(entity.getString(_name)),
+        Some(entity.getString(_email)),
+        None
+      )
+          .setImage(Some(entity.getString(_image)))
+          .setRole(entity.getLong(_role))
+      Some(c)
+    } catch {
+      case e: Throwable =>
+        log.error("Error in getById", e)
+        None
+    }
+  }
+}
 abstract class GenericUser(private val creds: Creds)
   extends DatastoreStorable {
-
-  val USER_KIND = "User"
+  import GenericUser._
   protected var __geolocation: Option[Geolocation] = None
   def geolocation: Option[Geolocation] = __geolocation
 

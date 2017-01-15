@@ -4,16 +4,16 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import akka.cluster.singleton.{ClusterSingletonProxy, ClusterSingletonProxySettings}
-import info.whereismyfood.aux.MyConfig.{ActorNames, Topics}
-import ProcessedOrder.OrderStatuses
-import info.whereismyfood.modules.business.{BusinessSingleton, OnOrderMarkChange, ReadyToShipOrders}
+import info.whereismyfood.aux.MyConfig.Topics
+import info.whereismyfood.modules.business.{BusinessSingleton, OnOrderMarkChange}
 import info.whereismyfood.modules.geo.GeoMySQLInterface
 import info.whereismyfood.modules.menu.{Dish, DishToAdd}
+import info.whereismyfood.modules.order.ProcessedOrder.OrderStatuses
 import info.whereismyfood.modules.user._
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.Try
-import concurrent.Future
-import concurrent.ExecutionContext.Implicits.global
 
 /**
   * Created by zakgoichman on 10/24/16.
@@ -70,7 +70,7 @@ class OrderActor extends Actor with ActorLogging {
   }
 
   def putOpenOrderForUser(x: PutOrderItemForUser): Option[OrderItem] = {
-    Dish.find(x.item.businessId, x.item.dishId) match {
+    Dish.find(x.item.dishId) match {
       case Some(dish) =>
         OrderItem.of(dish, x.item) match {
           case Some(orderItem) =>

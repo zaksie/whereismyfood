@@ -42,12 +42,10 @@ object ClientUser extends GenericUserTrait[ClientUser]{
   }
 }
 
-final case class ClientUser(private val creds: Creds)
+final case class ClientUser(override val creds: Creds)
   extends GenericUser(creds){
   override def compobj = ClientUser
-  //def jobInBusiness: Business.JobInBusiness = ClientUser.jobInBusiness
-
+  override def _copy = copy _
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
-
   override def extendFromDatastore(entity: Entity): this.type = this
 }

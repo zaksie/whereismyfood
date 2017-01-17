@@ -3,7 +3,7 @@ package info.whereismyfood.modules.business
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter
 import com.google.cloud.datastore._
-import info.whereismyfood.libs.database.DatastoreFetchable
+import info.whereismyfood.libs.database.{DatastoreFetchable, DatastoreStorable}
 import info.whereismyfood.modules.geo.{Address, LatLng}
 import info.whereismyfood.modules.user.Roles
 import info.whereismyfood.modules.user.Roles.RoleID
@@ -26,9 +26,12 @@ object Business extends DatastoreFetchable[Business] {
     val name = "name"
     val address = "address"
     val deliveryModes = "delivery_modes"
+    val include = "include"
     val image = "image"
     val rating = "rating"
     val raters = "raters"
+    val tagline = "tagline"
+    val description = "description"
     val info = "info"
     val owners: JobInBusiness = "owners"
     val couriers: JobInBusiness = "couriers"
@@ -48,21 +51,14 @@ object Business extends DatastoreFetchable[Business] {
   def apply(entity: Entity): Option[Business] = {
     try {
       import DSTypes._
-      val _owners = Try{entity.getList[StringValue](owners).asScala.map(_.get).toSet}.getOrElse(Set())
-      val _couriers = Try{entity.getList[StringValue](couriers).asScala.map(_.get).toSet}.getOrElse(Set())
-      val _chefs = Try{entity.getList[StringValue](chefs).asScala.map(_.get).toSet}.getOrElse(Set())
-      val _apiers = Try{entity.getList[StringValue](apiers).asScala.map(_.get).toSet}.getOrElse(Set())
-      val _info = entity.getEntity(info)
-        val busInfo = BusinessInfo(
-          _info.getString(name),
-          _info.getString(image),
-          _info.getList[StringValue](deliveryModes).asScala.map(_.get).toSet,
-          _info.getDouble(rating),
-          _info.getLong(raters).toInt,
-          new Address(_info.getEntity(address))
-        )
+      val _owners = entity.getList[StringValue](owners).asScala.map(_.get).toSet
+      val _couriers = entity.getList[StringValue](couriers).asScala.map(_.get).toSet
+      val _chefs = entity.getList[StringValue](chefs).asScala.map(_.get).toSet
+      val _apiers = entity.getList[StringValue](apiers).asScala.map(_.get).toSet
+      val _info = BusinessInfo.of(entity.getEntity(info)).get
+
       Some{
-        Business(entity.getKey.getId, busInfo,
+        Business(entity.getKey.getId, _info,
           _owners, _couriers, _chefs, _apiers)
       }
     } catch {
@@ -143,10 +139,6 @@ object Business extends DatastoreFetchable[Business] {
   }
 
   def addJobTo(id: String, businessId: Long, jobInBusiness: JobInBusiness): Boolean = {
-    addToDatastore(id, businessId, jobInBusiness)
-  }
-
-  def addToDatastore(id: String, businessId: Long, jobInBusiness: JobInBusiness): Boolean = {
     val txn = datastore.newTransaction()
     try {
       val addedWorker = StringValue.of(id)
@@ -166,14 +158,71 @@ object Business extends DatastoreFetchable[Business] {
       }
       else true
     } catch{
-      case _: Throwable => false
+      case _: Throwable =>
+        false
     }
   }
 }
 
-case class BusinessInfo(name: String, image: String, deliveryModes: Set[String], rating: Double, raters: Int, address: Address)
+import Business.{DSTypes => T}
+
+object DeliveryMode{
+  def of(entity: FullEntity[_ <: IncompleteKey]): Option[DeliveryMode] = {
+    Try {
+      DeliveryMode(
+        entity.getString(T.name),
+        entity.getBoolean(T.include)
+      )
+    }.toOption
+  }
+}
+
+case class DeliveryMode(name: String, include: Boolean) extends DatastoreStorable {
+  override def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]] = {
+    Try {
+      val entity = FullEntity.newBuilder()
+      entity.set(T.name, name)
+      entity.set(T.include, include)
+      entity.build
+    }
+  }.toOption
+}
+
+object BusinessInfo{
+  def of(entity: FullEntity[_ <: IncompleteKey]): Option[BusinessInfo] = {
+    Try {
+      BusinessInfo(
+        entity.getString(T.name),
+        entity.getString(T.image),
+        entity.getList[EntityValue](T.deliveryModes).asScala.map(_.get).map(DeliveryMode.of).map(_.get).toSet, //using 2 maps instead of flatmap to catch errors
+        entity.getDouble(T.rating),
+        entity.getLong(T.raters).toInt,
+        new Address(entity.getEntity(T.address)),
+        entity.getString(T.tagline),
+        entity.getString(T.description)
+      )
+    }.toOption
+  }
+}
+case class BusinessInfo(name: String, image: String, deliveryModes: Set[DeliveryMode],
+                        rating: Double, raters: Int, address: Address, tagline: String, description: String) extends DatastoreStorable {
+  override def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]] = {
+    Try {
+      val entity = FullEntity.newBuilder()
+      entity.set(T.name, name)
+      entity.set(T.image, image)
+      entity.set(T.tagline, tagline)
+      entity.set(T.description, description)
+      entity.set(T.deliveryModes, deliveryModes.map(_.asDatastoreEntity.get).map(EntityValue.of).toList.asJava)
+      entity.set(T.address, address.asDatastoreEntity.get)
+      entity.set(T.rating, rating)
+      entity.set(T.raters, raters)
+      entity.build
+    }
+  }.toOption
+}
 case class Business(id: Long, info: BusinessInfo, owners: Set[String], couriers: Set[String],
-                    chefs: Set[String], apiers: Set[String], config: BusinessConfig = BusinessConfig.default) {
+                    chefs: Set[String], apiers: Set[String]) extends DatastoreStorable{
   def filterForRole(role: RoleID): Business = {
     import Roles.api.business._
     val businessRoles = role & Roles.api.business.all
@@ -184,13 +233,33 @@ case class Business(id: Long, info: BusinessInfo, owners: Set[String], couriers:
     //else if((businessRoles & courier_list) != 0)  - if courier or anything below that, remove all groups
     else this.copy(owners = Set(), apiers=Set(), couriers = Set(), chefs = Set())
   }
+
+  def save(): Boolean = saveToDatastore() match {
+    case Some(_) => true
+    case _ => false
+  }
+
+  override def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]] = {
+    Try {
+      val key = datastore.newKeyFactory()
+          .setKind(Business.kind)
+          .newKey(id)
+      val entity = FullEntity.newBuilder(key)
+      entity.set(T.info, info.asDatastoreEntity.get)
+      entity.set(T.owners, owners.map(StringValue.of).toList.asJava)
+      entity.set(T.couriers, couriers.map(StringValue.of).toList.asJava)
+      entity.set(T.chefs, chefs.map(StringValue.of).toList.asJava)
+      entity.set(T.apiers, apiers.map(StringValue.of).toList.asJava)
+      entity.build
+    }
+  }.toOption
 }
 
 case class BusinessLocation(id: Long, latLng: Option[LatLng] = None)
 
 object BusinessJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import info.whereismyfood.modules.geo.AddressJsonSupport._
-  import BusinessConfig._
-  implicit val businessInfoFormatter = jsonFormat6(BusinessInfo)
-  implicit val businessFormatter = jsonFormat7(Business.apply)
+  implicit val deliveryModeFormatter = jsonFormat2(DeliveryMode.apply)
+  implicit val businessInfoFormatter = jsonFormat8(BusinessInfo.apply)
+  implicit val businessFormatter = jsonFormat6(Business.apply)
 }

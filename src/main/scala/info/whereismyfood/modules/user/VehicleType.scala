@@ -1,4 +1,4 @@
-package info.whereismyfood.modules.courier
+package info.whereismyfood.modules.user
 
 /**
   * Created by zakgoichman on 11/12/16.

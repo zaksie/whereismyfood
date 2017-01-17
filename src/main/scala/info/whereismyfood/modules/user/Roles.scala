@@ -62,7 +62,7 @@ object Roles {
   def isauthorized(role: RoleID, businessId: Long*)(implicit creds: Creds): Boolean ={
     Try{
       (creds.role & role) != 0 &&
-        (creds.role == Roles.api.master ||
+        (creds.role == Roles.api.master || businessId.isEmpty ||
           creds.businessIds.intersect(businessId.toSet).nonEmpty)
     }.getOrElse(false)
   }

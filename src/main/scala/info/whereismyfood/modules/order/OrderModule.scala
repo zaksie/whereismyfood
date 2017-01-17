@@ -103,7 +103,8 @@ class OrderActor extends Actor with ActorLogging {
   def addOrders(orders: Orders): Seq[ProcessedOrder] =
       ProcessedOrder.allIdsUnique(orders) match {
         case false => Seq()
-        case _ => processOrder(orders, AddProcessedOrders)
+        case _ =>
+          processOrder(orders, AddProcessedOrders)
       }
 
   def processOrder(orders: Orders, op: Seq[ProcessedOrder] => OpProcessedOrders): Seq[ProcessedOrder] = {

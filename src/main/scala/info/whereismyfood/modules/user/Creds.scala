@@ -1,10 +1,9 @@
 package info.whereismyfood.modules.user
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import info.whereismyfood.modules.courier.VehicleTypes
-import info.whereismyfood.modules.courier.VehicleTypes.VehicleType
 import info.whereismyfood.modules.geo.Address
 import info.whereismyfood.modules.user.Roles.RoleID
+import info.whereismyfood.modules.user.VehicleTypes.VehicleType
 import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol
 
@@ -68,7 +67,7 @@ final case class Creds(phone: String, uuid: Option[String] = None, var otp: Opti
   def owns(businessIds: Long*): Boolean = Roles.isauthorized(role, businessIds:_*)(this) || Roles.isMaster(role)
 
   def getInfoJson: String =
-    s"""{"name": "${name.getOrElse("")}", "image": "${image.getOrElse("")}", "role": $role}"""
+    s"""{"name": "${name.getOrElse("")}", "image": "${image.getOrElse("")}", "role": $role, "phone": "$phone"}"""
 }
 
 object CredsJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {

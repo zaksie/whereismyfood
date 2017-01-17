@@ -7,7 +7,7 @@ import com.google.cloud.datastore.{Entity, EntityValue, FullEntity}
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable, KVStorable}
 import info.whereismyfood.modules.geo.DeliveryRoute
 import info.whereismyfood.modules.order.ProcessedOrder.{OrderStatus, OrderStatuses}
-import info.whereismyfood.modules.user.{CourierJson, Creds}
+import info.whereismyfood.modules.user.{Creds, UserJson}
 import org.slf4j.LoggerFactory
 import redis.ByteStringFormatter
 import spray.json.DefaultJsonProtocol
@@ -53,7 +53,7 @@ object ProcessedOrder{
   val _status = "status"
   val _courierPhone = "courierPhone"
   val _route = "route"
-  val _deliveryType = "deliveryType"
+  val _deliveryMode = "deliveryMode"
 
   def of(order: Order)(implicit businessId: Long): ProcessedOrder = {
     ProcessedOrder(businessId, order.id, order.timestamp, order.client, order.contents.flatMap(_.toOrderItem))
@@ -61,7 +61,7 @@ object ProcessedOrder{
 
   implicit val byteStringFormatter = new ByteStringFormatter[ProcessedOrder] {
     override def serialize(data: ProcessedOrder): ByteString = {
-      val pickled = Pickle.intoBytes[ProcessedOrder](data)
+      val pickled = Pickle.intoBytes(data)
       ByteString(pickled)
     }
     override def deserialize(bs: ByteString): ProcessedOrder = {
@@ -82,7 +82,7 @@ object ProcessedOrder{
   def noIdsUnique(orders: Orders): Boolean = {
     validTransformedIdsInBatch(orders) match {
       case Some(ids) =>
-        val res = Databases.inmemory.retrieveSet(getSetKey(orders.businessId)).flatMap {
+        val res = Databases.inmemory.retrieveSet[String](getSetKey(orders.businessId)).flatMap {
           case Seq() => Future.successful(false)
           case existingIds => Future.successful(existingIds.intersect(ids).size == ids.size)
         }
@@ -94,9 +94,13 @@ object ProcessedOrder{
   def allIdsUnique(orders: Orders): Boolean = {
     validTransformedIdsInBatch(orders) match {
       case Some(ids) =>
-        val res = Databases.inmemory.retrieveSet(getSetKey(orders.businessId)).flatMap {
-          case Seq() => Future.successful(true)
+        val key = getSetKey(orders.businessId)
+        val res = Databases.inmemory.retrieveSet[String](key).flatMap {
+          case Seq() =>
+            println("TRUE")
+            Future.successful(true)
           case existingIds =>
+            println("CHECKING")
             Future.successful(existingIds.intersect(ids).isEmpty)
         }
         Await.result[Boolean](res, 30 seconds)
@@ -137,7 +141,6 @@ object ProcessedOrder{
   def retrieveAllActive(businessId: Long): Seq[ProcessedOrder] = {
     val processedOrders = Databases.inmemory.retrieveSet[String](getSetKey(businessId)).flatMap{
       case Seq() =>
-        println("bug #1: in retrieveAllActive")
         Future.successful(Seq())
       case orderKeys => Databases.inmemory.retrieve[ProcessedOrder](orderKeys:_*)
     }
@@ -164,8 +167,8 @@ object ProcessedOrder{
 }
 
 case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client: Creds, contents: Seq[OrderItem],
-                          ready: Boolean = false, courier: Option[CourierJson] = None,
-                          deliveryType: String = DeliveryTypes.sitin,
+                          ready: Boolean = false, courier: Option[UserJson] = None,
+                          deliveryMode: String = DeliveryModes.sitin,
                           status: OrderStatus = OrderStatuses.OPEN, route: Option[DeliveryRoute] = None)
     extends DatastoreStorable with KVStorable{
   def demand: Int = contents.size
@@ -189,7 +192,7 @@ case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client:
     if(courier.isDefined)
       entity.set(_courierPhone, courier.get.phone)
     entity.set(_status, status)
-    entity.set(_deliveryType, deliveryType)
+    entity.set(_deliveryMode, deliveryMode)
     entity.set(_route, route.getOrElse(DeliveryRoute.empty).polyline)
 
     Option(entity.build())
@@ -203,7 +206,7 @@ object ProcessedOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSuppo
   import OrderItemJsonSupport._
   import info.whereismyfood.modules.geo.DeliveryRouteJsonSupport._
   import info.whereismyfood.modules.user.CredsJsonSupport._
-  implicit val courierJsonFormatter = jsonFormat(CourierJson.apply, "name", "phone", "image", "vehicleType")
+  import info.whereismyfood.modules.user.UserJsonSupport._
   implicit val formatter = jsonFormat(ProcessedOrder.apply, "businessId", "id", "timestamp",
-    "client", "contents", "ready", "courier", "deliveryType", "status", "route")
+    "client", "contents", "ready", "courier", "deliveryMode", "status", "route")
 }

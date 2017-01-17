@@ -19,10 +19,9 @@ object APIUser extends GenericUserTrait[APIUser]{
   override protected def userActorFactory = None
 }
 
-final case class APIUser(private val creds: Creds) extends GenericUser(creds){
+final case class APIUser(override val creds: Creds) extends GenericUser(creds){
   override def compobj = APIUser
-  //def jobInBusiness: Business.JobInBusiness = APIUser.jobInBusiness
-
+  override def _copy = copy _
   override def getOTPBody(code: String*): String = {
     s"Yummlet code for API user: $code"
   }

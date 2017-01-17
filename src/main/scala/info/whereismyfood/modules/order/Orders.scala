@@ -23,7 +23,7 @@ case class Orders(businessId: Long, orders: Seq[Order]) extends OrderCommon{
   override def getBusinessId: Long = businessId
   def isValid: OrderError ={
     orders.find(x=>x.client.phone.isEmpty ||
-        (x.deliveryType == DeliveryTypes.delivery &&  x.client.geoaddress.isEmpty)) match {
+        (x.deliveryMode == DeliveryModes.delivery &&  x.client.geoaddress.isEmpty)) match {
       case Some(faultyOrder) =>
         if(faultyOrder.client.phone.isEmpty) OrderError(s"Phone field missing for order ${faultyOrder.id}")
         else OrderError(s"Address field either missing or couldn't be geocoded for order ${faultyOrder.id}")

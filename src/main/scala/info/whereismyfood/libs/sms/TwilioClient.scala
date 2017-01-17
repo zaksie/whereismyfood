@@ -4,8 +4,8 @@ import com.twilio.sdk.Twilio
 import com.twilio.sdk.`type`.PhoneNumber
 import com.twilio.sdk.resource.api.v2010.account.Message
 import info.whereismyfood.aux.MyConfig
+import info.whereismyfood.libs.database.Databases
 import org.slf4j.LoggerFactory
-
 /**
   * Created by zakgoichman on 11/2/16.
   */
@@ -16,13 +16,9 @@ object TwilioClient {
   private val FROM = new PhoneNumber(MyConfig.get("twilio.phone"))
 
   Twilio.init(ACCOUNT_SID, AUTH_TOKEN)
-
   def send(to: String, body: String): Unit = {
     log.info("Sending sms to " + to)
-    if(!MyConfig.production){
-      log.info("...not really")
-      return
-    }
+    Databases.inmemory.redis.incr("TWILIO_USES")
     Message.create(ACCOUNT_SID,
       new PhoneNumber(to), // To number
       FROM, // From number

@@ -1,7 +1,7 @@
 package info.whereismyfood.libs.database
 
 
-import com.google.cloud.datastore.{DatastoreOptions, Entity, FullEntity, IncompleteKey}
+import com.google.cloud.datastore._
 import org.slf4j.LoggerFactory
 
 import scala.util.Try
@@ -10,7 +10,6 @@ import scala.util.Try
   * Created by zakgoichman on 10/23/16.
   */
 class DatastoreClient private {
-  private val log = LoggerFactory.getLogger(this.getClass)
 
   val client = DatastoreOptions.getDefaultInstance.getService
 
@@ -20,6 +19,7 @@ class DatastoreClient private {
 }
 
 object DatastoreClient{
+  val log = LoggerFactory.getLogger(this.getClass)
   val instance = new DatastoreClient
 }
 
@@ -33,13 +33,21 @@ trait DatastoreStorable {
     }
   }
   def removeFromDatastore(): Boolean = {
-    asDatastoreEntity match {
-      case Some(record) =>
-        Try(datastore.delete(record.getKey(""))).isSuccess
+    getDatastoreKey match {
+      case Some(key) =>
+        try{
+          datastore.delete(key)
+          true
+        }catch{
+          case e: Throwable =>
+            DatastoreClient.log.error("Failed to delete record from datastore", e)
+            false
+        }
       case _ => false
     }
   }
   def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]]
+  def getDatastoreKey: Option[Key] = None
 }
 
 trait DatastoreFetchable[E] {

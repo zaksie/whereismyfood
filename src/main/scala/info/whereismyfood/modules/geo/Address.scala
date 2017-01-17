@@ -2,7 +2,7 @@ package info.whereismyfood.modules.geo
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.pattern.ask
-import com.google.cloud.datastore.FullEntity
+import com.google.cloud.datastore.{FullEntity, IncompleteKey}
 import com.google.maps.model.GeocodingResult
 import info.whereismyfood.libs.database.DatastoreStorable
 import info.whereismyfood.libs.geo.AddressToLatLng
@@ -16,45 +16,50 @@ import scala.concurrent.{Await, Future}
   * Created by zakgoichman on 11/4/16.
   */
 
+case object FailPinpointAddressException extends Exception
 object AddressJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   implicit val addressFormatter = jsonFormat(Address.apply, "latLng", "raw")
 }
-object Address{
+object Address {
   private val log = LoggerFactory.getLogger(this.getClass)
 
   val kind = "Address"
   val _latlng = "latlng"
   val _raw = "raw"
 
-  def empty = Address(LatLng(0,0))
+  def empty = Address(LatLng(0, 0))
 
   def of(addressOption: Option[String]): Option[Address] = {
     addressOption match {
       case Some(address) =>
-        import info.whereismyfood.aux.ActorSystemContainer.Implicits._
-        val f = GeoMySQLInterface.findByAddress(address).flatMap {
-          case Some(latLng) =>
-            Future.successful(Some(Address(latLng, address)))
-          case _ =>
-            system.actorSelection("/user/libs/google-geocoding-api").resolveOne().flatMap { aref =>
-              aref ? AddressToLatLng(address) map {
-                case x: GeocodingResult =>
-                  log.info("in Address.of with result: {}", x)
-                  Some(Address(LatLng(x.geometry.location), address))
-                case x =>
-                  println(x)
-                  None
-              }
-            }
-        }
+        of(address)
+      case _ => None
+    }
+  }
 
-        Await.result(f, 30 seconds) match {
-          case Some(addr) if !addr.latLng.isValid =>
-            log.error(s"LatLng(${addr.latLng}) is invalid!")
-            None
-          case addr@Some(_) => addr
-          case _ => None
+  def of(address: String): Option[Address] = {
+    import info.whereismyfood.aux.ActorSystemContainer.Implicits._
+    val f = GeoMySQLInterface.findByAddress(address).flatMap {
+      case Some(latLng) =>
+        Future.successful(Some(Address(latLng, address)))
+      case _ =>
+        system.actorSelection("/user/libs/google-geocoding-api").resolveOne().flatMap { aref =>
+          aref ? AddressToLatLng(address) map {
+            case x: GeocodingResult =>
+              log.info("in Address.of with result: {}", x)
+              Some(Address(LatLng(x.geometry.location), address))
+            case x =>
+              println(x)
+              None
+          }
         }
+    }
+
+    Await.result(f, 30 seconds) match {
+      case Some(addr) if !addr.latLng.isValid =>
+        log.error(s"LatLng(${addr.latLng}) is invalid!")
+        None
+      case addr@Some(_) => addr
       case _ => None
     }
   }
@@ -70,9 +75,8 @@ case class Address(latLng: LatLng, raw: String = "") extends DatastoreStorable{
 
   override def saveToDatastore() = throw new UnsupportedOperationException
 
-  override def asDatastoreEntity: Option[FullEntity[_]] = {
-    val key = datastore.newKeyFactory().setKind(kind).newKey()
-    val entity = FullEntity.newBuilder(key)
+  override def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]] = {
+    val entity = FullEntity.newBuilder()
     entity.set(_latlng, latLng.toDatastoreLatLng)
     try {
       for (field <- this.getClass.getDeclaredFields) {

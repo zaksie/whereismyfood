@@ -1,5 +1,7 @@
 package info.whereismyfood.routes.api.v1.http
 
+import java.util.UUID
+
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
@@ -9,7 +11,6 @@ import info.whereismyfood.modules.order._
 import info.whereismyfood.modules.user.{Creds, Roles}
 import org.slf4j.LoggerFactory
 import spray.json._
-import java.util.UUID
 
 import scala.concurrent.Await
 
@@ -87,7 +88,7 @@ object OrderRoutes {
       path("me"){
         import OrderJsonSupport._
         put {
-          entity(as[Order]) { order =>
+          entity(as[Order]){ order =>
             val orders = Seq(order.copy(id=UUID.randomUUID.toString, client=creds))
             if (clientOwnsOrder(orders))
               putOrders(Orders(order.businessId, orders)) match {

@@ -5,8 +5,8 @@ import java.time.{ZoneOffset, ZonedDateTime}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
 import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution
 import info.whereismyfood.aux.MyConfig.{ActorNames, OpCodes, Topics}
 import info.whereismyfood.aux.{ActorSystemContainer, MyConfig}
@@ -17,12 +17,11 @@ import info.whereismyfood.modules.order.ProcessedOrder.OrderStatuses
 import info.whereismyfood.modules.user.CourierUser
 import monix.reactive.Consumer
 import monix.reactive.subjects.ConcurrentSubject
+import spray.json._
 
+import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import collection.JavaConverters._
-import spray.json._
 
 /**
   * Created by zakgoichman on 11/16/16.
@@ -74,20 +73,14 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
   val publishMark = ConcurrentSubject.publish[Unit]
   publishMark.throttleFirst(15 seconds).debounce(15 seconds)
       .consumeWith {
-        Consumer.foreach(_ => attemptDispatchOrders()) //TODO: Check that suspicious foreach statement
+        Consumer.foreach(_ => {
+          attemptDispatchOrders()
+        }) //TODO: Check that suspicious foreach statement
       }.runAsync
 
-
-  def updateLastConsultationDate(userId: String): Unit = {
-    //TODO
-    ???
-  }
-
   override def receive: Receive = {
-    case OnOrderMarkChange =>
+    case OnOrderMarkChange | PeriodicDispatchAttempt =>
       publishMark.onNext()
-    case PeriodicDispatchAttempt =>
-      attemptDispatchOrders()
   }
 
   def attemptDispatchOrders(): Unit = {
@@ -104,10 +97,12 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
     }
   }
 
-  def activeAndReadyOrders = ProcessedOrder.retrieveAllActive(business.id).filter(OrderStatuses.isReady)
+  def activeAndReadyOrders = {
+    ProcessedOrder.retrieveAllActive(business.id).filter(OrderStatuses.isReady)
+  }
   def availableCourierCount: Seq[CourierUser] = CourierUser.getAllNear(origin, business.owners)
 
-  def tryConstructRoute(): Any =
+  def tryConstructRoute(): Any = {
     activeAndReadyOrders match {
       case Seq() =>
         None
@@ -119,6 +114,7 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
         askForUserIntervention(havenots, optrouteActorRef)
         tryGetSolution(haves, optrouteActorRef, earliestOrderEpochSecond)
     }
+  }
 
   def tryGetSolution(orders: Set[ProcessedOrder], optrouteActorRef: ActorRef, earliestOrderEpochSecond: Long): Any = {
     Fleet(availableCourierCount.size, MyConfig.Vars.vehicle_capacity) match {
@@ -130,7 +126,7 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
             DispatchItinerary(sol)
           case CVRPSuboptimalSolution(sol) =>
             val now = ZonedDateTime.now(ZoneOffset.UTC).toEpochSecond
-            if (now - earliestOrderEpochSecond > business.config.orderTimeConstraints_sec)
+            if (now - earliestOrderEpochSecond > 15*60)
               DispatchItinerary(sol)
             else
               None
@@ -157,7 +153,8 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
             case Some(ll) =>
               val deliveryRoute = DeliveryRoute.of(b._1, ll)
               val jobs = b._2 ++ orders.filter(_.geoid == id)
-                      .map(_.copy(courier = vehicle.toCourierJsonOption, route = deliveryRoute, status = OrderStatuses.ENROUTE))
+                  //TODO: WHAT IS THIS?
+                      .map(_.copy(courier = Some(vehicle.toJson(Set())), route = deliveryRoute, status = OrderStatuses.ENROUTE))
               (ll, jobs)
             case _ =>
               log.error("couldn't parse geoid: " + id)

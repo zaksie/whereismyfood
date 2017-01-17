@@ -4,10 +4,10 @@ import akka.actor.Actor
 import akka.routing.RoundRobinPool
 import info.whereismyfood.modules.auth.VerifyPhoneModule
 import info.whereismyfood.modules.business.BusinessModule
-import info.whereismyfood.modules.courier.CourierModule
 import info.whereismyfood.modules.geo.OptRouteModule
 import info.whereismyfood.modules.menu.{DishModule, MenuModule}
 import info.whereismyfood.modules.order.OrderModule
+import info.whereismyfood.modules.user.{CourierModule, ManagerModule}
 
 /**
   * Created by zakgoichman on 10/21/16.
@@ -19,6 +19,7 @@ class ModuleActors extends Actor {
     context.actorOf(OrderModule.props.withRouter(RoundRobinPool(size)), "order")
     context.actorOf(BusinessModule.props.withRouter(RoundRobinPool(size)), "business")
     context.actorOf(CourierModule.props.withRouter(RoundRobinPool(size)), "couriers")
+    context.actorOf(ManagerModule.props.withRouter(RoundRobinPool(size)), "managers")
     context.actorOf(DishModule.props.withRouter(RoundRobinPool(size)), "dishes")
     context.actorOf(MenuModule.props.withRouter(RoundRobinPool(size)), "menus")
 

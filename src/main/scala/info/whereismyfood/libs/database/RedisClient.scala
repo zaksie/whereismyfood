@@ -13,7 +13,7 @@ class RedisClient private {
   import ActorSystemContainer.Implicits._
   import concurrent.ExecutionContext.Implicits.global
 
-  private val redis = RedisClientLib(MyConfig.get("redis.host"), MyConfig.getInt("redis.port"), Some(MyConfig.get("redis.pwd")))
+  val redis = RedisClientLib(MyConfig.get("redis.host"), MyConfig.getInt("redis.port"), Some(MyConfig.get("redis.pwd")))
 
   def addToSet[T](expiry: Duration, key: String, items: T*)(implicit bsd: ByteStringSerializer[T]): Future[MultiBulk] = {
     val redisTransaction = redis.transaction() // new TransactionBuilder
@@ -31,7 +31,7 @@ class RedisClient private {
   }
 
   def retrieveSet[T](key: String)(implicit bsd: ByteStringDeserializer[T]): Future[Seq[T]] = {
-    redis.smembers[T](key)
+      redis.smembers[T](key)
   }
 
 

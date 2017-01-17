@@ -3,25 +3,30 @@ package info.whereismyfood.modules.user
 import java.time.{ZoneOffset, ZonedDateTime}
 
 import akka.actor.{ActorRef, Props}
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import com.google.cloud.datastore._
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.MyConfig.Vars
-import info.whereismyfood.libs.auth.{OTP}
+import info.whereismyfood.libs.auth.OTP
 import info.whereismyfood.libs.database.{Databases, DatastoreStorable}
 import info.whereismyfood.modules.auth.RequestOTP
 import info.whereismyfood.modules.business.Business
 import info.whereismyfood.modules.business.Business.JobInBusiness
+import VehicleTypes.VehicleType
 import info.whereismyfood.modules.geo
 import info.whereismyfood.modules.geo.{Address, Distance, Geolocation}
+import info.whereismyfood.modules.user.CourierUser.find
 import info.whereismyfood.modules.user.Roles.RoleID
 import info.whereismyfood.routes.auth.Login
 import org.slf4j.LoggerFactory
+import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.Await
 import scala.util.Try
+import collection.JavaConverters._
 /**
   * Created by zakgoichman on 11/20/16.
   */
@@ -116,6 +121,11 @@ trait GenericUserTrait[T <: GenericUser]{
     Seq(CourierUser.find("world").get)
   }
 
+  def getById(ids: String*): Seq[T] = {
+    val keys = ids.map(id=>datastore.newKeyFactory().setKind(kind).newKey(id))
+    datastore.get(keys:_*).asScala.toSeq.flatMap(x => of(x))
+  }
+
   def find(phone: String): Option[T] = {
     getFromDatastore(phone) match {
       case Some(account) if isAuthorized(account) =>
@@ -135,6 +145,35 @@ trait GenericUserTrait[T <: GenericUser]{
             Option(user.save)
         }
       case _ => None
+    }
+  }
+
+  def of(user: UserJson, role: RoleID): Option[T] = {
+    find(user.prevPhone) match {
+      case Some(user_tmp) =>
+        val email = if(user.email.isEmpty) user_tmp.email else Option(user.email)
+        val creds_new = user_tmp.creds.copy(phone = user.phone, name = Option(user.name), email = email)
+            .setImage(Try(user.image.getOrElse(user_tmp.image.get)).toOption)
+            .setVehicleType(Try(user.vehicleType.getOrElse(user_tmp.vehicleType.get)).toOption)
+            .setRole(user_tmp.role | role)
+        if(user.prevPhone != user.phone) {
+          find(user.phone) match {
+            case Some(_) => //Phone number is already taken by another user. signal error
+              return None
+            case _ if !user_tmp.removeFromDatastore()=>
+              return None
+            case _ =>
+          }
+        }
+
+        Option(user_tmp._copy(creds_new).asInstanceOf[T].save)
+      case _ =>
+        Option(of{
+          Creds(user.phone, None, None, Option(user.name), Option(user.email), None)
+              .setImage(user.image)
+              .setVehicleType(user.vehicleType)
+              .setRole(role)
+        }.save)
     }
   }
 
@@ -215,7 +254,7 @@ object GenericUser{
     }
   }
 }
-abstract class GenericUser(private val creds: Creds)
+abstract class GenericUser(val creds: Creds)
   extends DatastoreStorable {
   import GenericUser._
   protected var __geolocation: Option[Geolocation] = None
@@ -246,6 +285,8 @@ abstract class GenericUser(private val creds: Creds)
     this
   }
 
+  def _copy: Creds => _ <: GenericUser
+
   def toCreds(otp: Option[String] = None) : Creds ={
     creds.copy(otp = otp)
   }
@@ -255,12 +296,13 @@ abstract class GenericUser(private val creds: Creds)
     this
   }
 
+  def toJson(businessIds: Set[Long]): UserJson = UserJson(name.getOrElse(""), phone, email.getOrElse(""), image, vehicleType, this.businessIds.intersect(businessIds))
+
+  override def getDatastoreKey: Option[Key] = Option(datastore.newKeyFactory().setKind(USER_KIND).newKey(phone))
 
   override def asDatastoreEntity: Option[FullEntity[_]] = {
-    val key = datastore.newKeyFactory().setKind(USER_KIND).newKey(phone)
-
     import FieldNames._
-    val entity = FullEntity.newBuilder(key)
+    val entity = FullEntity.newBuilder(getDatastoreKey.get)
         .set(_deviceId, deviceId.getOrElse(""))
         .set(_phone, phone)
         .set(_email, email.getOrElse(""))
@@ -328,4 +370,13 @@ abstract class GenericUser(private val creds: Creds)
   def asDatastoreAncestor: PathElement = PathElement.of(USER_KIND, phone)
 
   def setGeolocation(geolocation: Geolocation): this.type = {__geolocation = Option(geolocation); this}
+}
+
+final case class UserJson(name: String, phone: String, email: String, image: Option[String],
+                          vehicleType: Option[VehicleType] = Some(VehicleTypes.default),
+                          businessIds: Set[Long], businessIdsToRemove: Set[Long] = Set(), prevPhone: String = "")
+
+object UserJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
+  implicit val userJsonFormatter = jsonFormat(UserJson.apply, "name", "phone", "email", "image",
+    "vehicleType", "businessIds", "businessIdsToRemove", "prevPhone")
 }

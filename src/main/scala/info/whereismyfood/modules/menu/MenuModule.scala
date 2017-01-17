@@ -8,7 +8,7 @@ import spray.json._
   */
 
 object MenuModule {
-  case class AddMenu(image: String, json: String, businessIds: Seq[Long])
+  case class AddMenu(image: Option[String], json: String, businessIds: Seq[Long])
 
   def props = Props[MenuActor]
 }
@@ -21,8 +21,13 @@ class MenuActor extends Actor {
       println(json)
       try{
         val jsonEx = json.subSequence(0, json.length - 1) + s""", "image": "$image"} """
-        val menu = jsonEx.parseJson.convertTo[Menu]
-        menu.copy(image = image, businessIds = businessIds).saveToDatastore().get
+        val menu_tmp = jsonEx.parseJson.convertTo[Menu]
+        Menu.getFromDatastore(menu_tmp.id) match {
+          case Some(menu) =>
+            menu_tmp.copy(image = image.getOrElse(menu.image), businessIds = businessIds).saveToDatastore().get
+          case _ =>
+            menu_tmp.copy(image = image.getOrElse(""), businessIds = businessIds).saveToDatastore().get
+        }
         sender ! true
       }catch{
         case e:Throwable =>

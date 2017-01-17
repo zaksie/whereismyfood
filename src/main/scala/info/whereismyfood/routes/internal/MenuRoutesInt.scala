@@ -19,7 +19,6 @@ object MenuRoutesInt {
 
           val d = menu.sections.flatMap(_.dishes.flatMap(d => Dish.find(d.dishId)))
           val res =MenuDishesPair(menu, d).toJson.compactPrint
-          println(res)
           complete(res)
         case _ =>
           complete(404)

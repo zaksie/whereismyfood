@@ -24,12 +24,13 @@ object ManagerUser extends GenericUserTrait[ManagerUser]{
   override protected def userActorFactory = None
 }
 
-final case class ManagerUser(private val creds: Creds)
+final case class ManagerUser(override val creds: Creds)
   extends GenericUser(creds){
   override def compobj = ManagerUser
-  //def jobInBusiness: Business.JobInBusiness = ManagerUser.jobInBusiness
+  override def _copy = copy _
 
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
 
   override def extendFromDatastore(entity: Entity): this.type = this
 }
+

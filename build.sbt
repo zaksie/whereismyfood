@@ -34,7 +34,7 @@ libraryDependencies ++= {
     "io.spray" %%  "spray-json" % "1.3.2",
     "com.graphhopper" % "jsprit-core" % "1.7-RC1",
     "com.github.etaty" % "rediscala_2.11" % "1.6.0",
-    "me.chrons" % "boopickle_2.11" % "1.2.4",
+    "me.chrons" % "boopickle_2.11" % "1.2.5",
     "com.twilio.sdk" % "twilio-java-sdk" % "7.0.0-rc-10",
     "io.monix" %% "monix" % "2.1.1"
   )

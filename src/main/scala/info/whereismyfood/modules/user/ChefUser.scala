@@ -24,11 +24,10 @@ object ChefUser extends GenericUserTrait[ChefUser]{
   override protected def userActorFactory = Some(ChefUserActor)
 }
 
-final case class ChefUser(private val creds: Creds)
+final case class ChefUser(override val creds: Creds)
   extends GenericUser(creds){
   override def compobj = ChefUser
-  //def jobInBusiness: Business.JobInBusiness = ChefUser.jobInBusiness
-
+  override def _copy = copy _
   override def getOTPBody(code: String*): String = ???
 
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}

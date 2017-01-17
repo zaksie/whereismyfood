@@ -28,7 +28,7 @@ object OpenOrder{
         Some(OpenOrder(businessId,
           System.currentTimeMillis / 1000,
           user.toCreds(),
-          DeliveryTypes.sitin, //this is determined only when order is placed and therefore is useless here
+          DeliveryModes.sitin, //this is determined only when order is placed and therefore is useless here
           Seq(item)))
       case _ => None
     }
@@ -42,7 +42,7 @@ object OpenOrder{
   val _orderId = "orderId"
   val _items = "items"
   val _clientPhone = "clientPhone"
-  val _deliveryType = "deliveryType"
+  val _deliveryMode = "deliveryMode"
 
   implicit val byteStringFormatter = new ByteStringFormatter[OpenOrder] {
     override def serialize(data: OpenOrder): ByteString = {
@@ -118,7 +118,7 @@ object OpenOrder{
   }
 }
 
-case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, deliveryType: String = DeliveryTypes.sitin, contents: Seq[OrderItem])
+case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, deliveryMode: String = DeliveryModes.sitin, contents: Seq[OrderItem])
     extends DatastoreStorable with KVStorable{
   import OpenOrder._
   override def key: String = getKey(client.phone)
@@ -129,14 +129,14 @@ case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, deliveryT
     entity.set(_businessId, businessId)
     entity.set(_timestamp, timestamp)
     entity.set(_clientPhone, client.phone)
-    entity.set(_deliveryType, deliveryType)
+    entity.set(_deliveryMode, deliveryMode)
     entity.set(_items, contents.map(x => new EntityValue(x.asDatastoreEntity.get)).asJava)
 
     Option(entity.build())
   }
 
   def toOrder: Order = {
-    Order(key, businessId, client, deliveryType, contents.map(x=> DishToAdd(x.businessId, x.dish.id, x.notes)))
+    Order(key, businessId, client, deliveryMode, contents.map(x=> DishToAdd(x.businessId, x.dish.id, x.notes)))
   }
 }
 
@@ -144,5 +144,5 @@ object OpenOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import info.whereismyfood.modules.user.CredsJsonSupport._
   import OrderItemJsonSupport._
   implicit val formatter = jsonFormat(OpenOrder.apply, "businessId", "timestamp",
-    "client", "deliveryType", "contents")
+    "client", "deliveryMode", "contents")
 }

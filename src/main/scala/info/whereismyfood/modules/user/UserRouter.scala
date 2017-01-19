@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Random
 /**
   * Created by zakgoichman on 11/24/16.
   */
@@ -22,6 +23,8 @@ object UserRouter {
   }
 
   def getJwtFor(id: String): Option[String] = {
-    Await.result[Option[String]](Databases.inmemory.retrieve(s"jwt/$id"), 5 seconds)
+    if (Random.nextDouble < 0.5)
+      Await.result[Option[String]](Databases.inmemory.retrieve(s"jwt/$id"), 5 seconds)
+    else None
   }
 }

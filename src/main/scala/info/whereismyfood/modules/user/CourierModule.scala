@@ -20,7 +20,7 @@ class CourierActor extends UserActor {
 
   override def receive: Receive = {
     case AddUser(userJson) =>
-      updateOrCreateUser(userJson, role)
+      sender ! updateOrCreateUser(userJson)
   }
 }
 

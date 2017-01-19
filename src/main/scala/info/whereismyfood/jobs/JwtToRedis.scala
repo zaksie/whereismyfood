@@ -41,7 +41,7 @@ object JwtToRedis {
       Go)(context.system.dispatcher)
   }
 
-  val props = Props[JwtToRedisActor]
+  def props = Props[JwtToRedisActor]
 
   val SAVE_DURATION = 3 hours
 }

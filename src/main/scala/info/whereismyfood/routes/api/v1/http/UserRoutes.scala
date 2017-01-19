@@ -29,7 +29,7 @@ object UserRoutes {
           pathEndOrSingleSlash {
             GenericUser.getById(creds.phone) match {
               case Some(user) => complete(user.getInfoJson)
-              case _ => complete(503)
+              case _ => complete(500)
             }
           } ~
           path("finances"){

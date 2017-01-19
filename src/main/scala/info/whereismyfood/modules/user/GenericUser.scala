@@ -25,8 +25,10 @@ import org.slf4j.LoggerFactory
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.Await
+import scala.concurrent.duration._
 import scala.util.Try
 import collection.JavaConverters._
+
 /**
   * Created by zakgoichman on 11/20/16.
   */
@@ -44,6 +46,11 @@ private object FieldNames {
 
 trait HasPropsFunc[T <: GenericUser] {
   def props(implicit user: T): Props
+}
+
+object transactionalUser{
+  val prefix = "transactional-user/"
+  val expiry: Duration = 2 days
 }
 
 trait GenericUserTrait[T <: GenericUser]{
@@ -149,14 +156,15 @@ trait GenericUserTrait[T <: GenericUser]{
   }
 
   def of(user: UserJson, role: RoleID): Option[T] = {
-    find(user.prevPhone) match {
+    find(user.prevPhone.getOrElse("")) match {
       case Some(user_tmp) =>
         val email = if(user.email.isEmpty) user_tmp.email else Option(user.email)
         val creds_new = user_tmp.creds.copy(phone = user.phone, name = Option(user.name), email = email)
             .setImage(Try(user.image.getOrElse(user_tmp.image.get)).toOption)
             .setVehicleType(Try(user.vehicleType.getOrElse(user_tmp.vehicleType.get)).toOption)
             .setRole(user_tmp.role | role)
-        if(user.prevPhone != user.phone) {
+            .setVerified(user_tmp.verified)
+        if(user.prevPhone != Some(user.phone)) {
           find(user.phone) match {
             case Some(_) => //Phone number is already taken by another user. signal error
               return None
@@ -200,7 +208,7 @@ trait GenericUserTrait[T <: GenericUser]{
 
       creds.setRole(entity.getLong(_role))
       creds.setBusinesses(Business.getIdsFor(creds.phone, jobInBusiness))
-      log.info(s"Got business list for $jobInBusiness: ${creds.businessIds.mkString}")
+      log.info(s"Got business list for $jobInBusiness: ${creds.businessIds.mkString(",")}")
       val obj: T = of(creds)
       obj.extendFromDatastore(entity)
     }.toOption
@@ -264,7 +272,7 @@ abstract class GenericUser(val creds: Creds)
     if(creds.geoaddress.isDefined) creds.geoaddress
     else Address.of(creds.address)
   }
-  def jwt = Login.createToken(this)
+  def jwt = Login.createTokenFromUser(this)
 
   def compobj: GenericUserTrait[_]
   def jobInBusiness: Business.JobInBusiness = compobj.jobInBusiness
@@ -296,30 +304,25 @@ abstract class GenericUser(val creds: Creds)
     this
   }
 
-  def toJson(businessIds: Set[Long]): UserJson = UserJson(name.getOrElse(""), phone, email.getOrElse(""), image, vehicleType, this.businessIds.intersect(businessIds))
+  def toJson(businessIds: Set[Long], expiry: Option[Long] = None): UserJson =
+    UserJson(name = name.getOrElse(""),
+      phone = phone,
+      email = email.getOrElse(""),
+      image = image,
+      vehicleType = vehicleType,
+      businessIds = this.businessIds.intersect(businessIds),
+      expiresInMillis = expiry
+    )
 
   override def getDatastoreKey: Option[Key] = Option(datastore.newKeyFactory().setKind(USER_KIND).newKey(phone))
 
-  override def asDatastoreEntity: Option[FullEntity[_]] = {
-    import FieldNames._
-    val entity = FullEntity.newBuilder(getDatastoreKey.get)
-        .set(_deviceId, deviceId.getOrElse(""))
-        .set(_phone, phone)
-        .set(_email, email.getOrElse(""))
-        .set(_name, name.getOrElse(""))
-        .set(_image, image.getOrElse(""))
-        .set(_role, role)
-        .set(_verified, verified)
-        .set(_vehicleType, vehicleType.getOrElse(""))
-
-    val addr = address match {
-      case Some(a) => a
-      case _ => Address.empty
+  override def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]] = {
+    asDatastoreEntityUnbuilt match {
+      case Some(entity) =>
+        Option(entity.build)
+      case _ =>
+        None
     }
-    entity.set(_address, addr.asDatastoreEntity.get)
-
-    extendDatastoreEntity(entity)
-    Option(entity.build)
   }
 
   def extendDatastoreEntity(entity: FullEntity.Builder[Key]): Unit
@@ -368,15 +371,39 @@ abstract class GenericUser(val creds: Creds)
   def extendFromDatastore(entity: Entity): this.type
 
   def asDatastoreAncestor: PathElement = PathElement.of(USER_KIND, phone)
+  def asDatastoreEntityUnbuilt: Option[FullEntity.Builder[_ <: IncompleteKey]] = {
+    import FieldNames._
+    Try {
+      val entity = FullEntity.newBuilder(getDatastoreKey.get)
+          .set(_deviceId, deviceId.getOrElse(""))
+          .set(_phone, phone)
+          .set(_email, email.getOrElse(""))
+          .set(_name, name.getOrElse(""))
+          .set(_image, image.getOrElse(""))
+          .set(_role, role)
+          .set(_verified, verified)
+          .set(_vehicleType, vehicleType.getOrElse(""))
+
+      val addr = address match {
+        case Some(a) => a
+        case _ => Address.empty
+      }
+      entity.set(_address, addr.asDatastoreEntity.get)
+
+      extendDatastoreEntity(entity)
+      entity
+    }.toOption
+  }
 
   def setGeolocation(geolocation: Geolocation): this.type = {__geolocation = Option(geolocation); this}
 }
 
 final case class UserJson(name: String, phone: String, email: String, image: Option[String],
                           vehicleType: Option[VehicleType] = Some(VehicleTypes.default),
-                          businessIds: Set[Long], businessIdsToRemove: Set[Long] = Set(), prevPhone: String = "")
+                          businessIds: Set[Long], businessIdsToRemove: Set[Long] = Set(),
+                          prevPhone: Option[String] = None, expiresInMillis: Option[Long] = None)
 
 object UserJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   implicit val userJsonFormatter = jsonFormat(UserJson.apply, "name", "phone", "email", "image",
-    "vehicleType", "businessIds", "businessIdsToRemove", "prevPhone")
+    "vehicleType", "businessIds", "businessIdsToRemove", "prevPhone", "expiresInMillis")
 }

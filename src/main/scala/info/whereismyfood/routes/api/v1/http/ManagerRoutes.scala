@@ -15,6 +15,8 @@ import info.whereismyfood.modules.geo.{Address, FailPinpointAddressException, La
 import info.whereismyfood.modules.menu.DishModule.AddDish
 import info.whereismyfood.modules.menu.MenuModule.AddMenu
 import info.whereismyfood.modules.menu.{Dish, Menu, Price}
+import info.whereismyfood.modules.user.AdminUserAssets.{GetBusinesses, GetDishes, GetMenus}
+import info.whereismyfood.modules.user.ChefModule.{RequestToken, UpdateChef}
 import info.whereismyfood.modules.user._
 import org.slf4j.LoggerFactory
 import spray.json._
@@ -35,6 +37,8 @@ object ManagerRoutes {
   private val menuActionActorRef = Await.result(system.actorSelection("/user/modules/menus").resolveOne(), resolveTimeout.duration)
   private val businessActionActorRef = Await.result(system.actorSelection("/user/modules/business").resolveOne(), resolveTimeout.duration)
   private val managerActionActorRef = Await.result(system.actorSelection("/user/modules/managers").resolveOne(), resolveTimeout.duration)
+  private val chefActionActorRef = Await.result(system.actorSelection("/user/modules/chefs").resolveOne(), resolveTimeout.duration)
+  private val adminActionActorRef = Await.result(system.actorSelection("/user/modules/admin").resolveOne(), resolveTimeout.duration)
 
   implicit val executionContext = ActorSystemContainer.getSystem.dispatcher
 
@@ -46,14 +50,38 @@ object ManagerRoutes {
         complete(200)
       } ~
       pathPrefix("business"){
-        path("all") {
-          AdminUserAssets.getAllFor(creds) match {
-            case Some(assets) =>
-              import info.whereismyfood.modules.user.AdminUserAssetsJsonSupport._
-              complete(assets)
-            case _ => complete(404)
+        import info.whereismyfood.modules.user.AdminUserAssets._
+        import AdminUserAssetsJsonSupport._
+        path("businesses") {
+          complete{
+            (adminActionActorRef ? GetBusinesses(creds)).asInstanceOf[Future[AdminUserAssets]].map(_.toJson.compactPrint)
           }
         } ~
+            path("menus") {
+              complete{
+                (adminActionActorRef ? GetMenus(creds)).asInstanceOf[Future[AdminUserAssets]].map(_.toJson.compactPrint)
+              }
+            } ~
+            path("dishes") {
+              complete{
+                (adminActionActorRef ? GetDishes(creds)).asInstanceOf[Future[AdminUserAssets]].map(_.toJson.compactPrint)
+              }
+            } ~
+            path("owners") {
+              complete{
+                (adminActionActorRef ? GetOwners(creds)).asInstanceOf[Future[AdminUserAssets]].map(_.toJson.compactPrint)
+              }
+            } ~
+            path("couriers") {
+              complete{
+                (adminActionActorRef ? GetCouriers(creds)).asInstanceOf[Future[AdminUserAssets]].map(_.toJson.compactPrint)
+              }
+            } ~
+            path("terminals") {
+              complete{
+                (adminActionActorRef ? GetChefs(creds)).asInstanceOf[Future[AdminUserAssets]].map(_.toJson.compactPrint)
+              }
+            } ~
         path(LongNumber) { id =>
           put {
             entity(as[Multipart.FormData]) { formData =>
@@ -87,7 +115,7 @@ object ManagerRoutes {
               Dish.find(dishId) match {
                 case Some(dish) if creds.owns(dish.businessIds: _*) =>
                   complete {
-                    if (Dish.remove(dishId)) 200 else 503
+                    if (Dish.remove(dishId)) 200 else 500
                   }
                 case None => complete(400)
                 case _ => complete(403)
@@ -104,13 +132,44 @@ object ManagerRoutes {
                   Menu.find(menuId) match {
                     case Some(menu) if creds.owns(menu.businessIds: _*) =>
                       complete {
-                        if (Menu.remove(menuId)) 200 else 503
+                        if (Menu.remove(menuId)) 200 else 500
                       }
                     case None => complete(400)
                     case _ => complete(403)
                   }
                 }
+          } ~
+      pathPrefix("terminal"){
+        path("request-token") {
+          post {
+            complete {
+              (chefActionActorRef ? RequestToken)
+                  .flatMap[ToResponseMarshallable] {
+                case Some(id) => Future.successful(id.toString)
+                case None => Future.successful(500)
+              }
+            }
           }
+        } ~
+        path(Segment) { chefId =>
+          put {
+            import UserJsonSupport._
+            entity(as[UserJson]) { user =>
+              complete(addChef(user))
+            }
+          } ~
+              delete {
+                ChefUser.find(chefId) match {
+                  case Some(chef) if creds.owns(chef.businessIds.toSeq: _*) =>
+                    complete {
+                      if (chef.removeFromDatastore()) 200 else 500
+                    }
+                  case None => complete(400)
+                  case _ => complete(403) // Some(_) but !creds.owns
+                }
+              }
+        }
+      }
     }
   }
 
@@ -144,7 +203,7 @@ object ManagerRoutes {
         Try(allParts("vehicleType")).toOption,
         businessIds,
         creds.businessIds.diff(businessIds),
-        allParts("prevPhone")
+        Some(allParts("prevPhone"))
       ))
   }
   def addCourier(formData: Multipart.FormData)(implicit creds: Creds): Future[ToResponseMarshallable] = {
@@ -159,7 +218,7 @@ object ManagerRoutes {
             case Some(add_courier) =>
               (courierActionActorRef ? add_courier).asInstanceOf[Future[Boolean]].map(res => if (res) 200 else 400)
             case _ =>
-              Future.successful(503)
+              Future.successful(500)
           }
       }
     }
@@ -181,7 +240,7 @@ object ManagerRoutes {
             case Some(add_owner) =>
               (managerActionActorRef ? add_owner).asInstanceOf[Future[Boolean]].map(res => if (res) 200 else 400)
             case _ =>
-              Future.successful(503)
+              Future.successful(500)
           }
       }
     }
@@ -209,7 +268,7 @@ object ManagerRoutes {
       } catch {
         case e: Throwable =>
           println("Error adding dish: " + e.getMessage)
-          Future.successful(503)
+          Future.successful(500)
       }
     }
 
@@ -229,11 +288,21 @@ object ManagerRoutes {
       } catch {
         case e: Throwable =>
           println("Error adding menu: " + e.getMessage)
-          Future.successful(503)
+          Future.successful(500)
       }
     }
 
     parseMultiPart(MyConfig.get("bucket-folders.menus"), formData).flatMap(processData)
+  }
+
+  def addChef(chef: UserJson)(implicit creds: Creds): Future[ToResponseMarshallable] = {
+    if (!creds.owns(chef.businessIds.head))
+      return Future.successful(403)
+    val chef_tag = chef.copy(businessIdsToRemove = creds.businessIds.diff(chef.businessIds))
+    (chefActionActorRef ? UpdateChef(chef_tag)).map{
+      case true => 200
+      case _ => 400
+    }
   }
 
 
@@ -254,7 +323,7 @@ object ManagerRoutes {
           Future.successful(HttpResponse(status = 400, entity= "Failed to pinpoint address"))
         case e: Throwable =>
           println("Error adding menu: " + e.getMessage)
-          Future.successful(503)
+          Future.successful(500)
       }
     }
 

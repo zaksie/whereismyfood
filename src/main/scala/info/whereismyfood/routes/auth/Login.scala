@@ -3,9 +3,6 @@ package info.whereismyfood.routes.auth
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives
 import info.whereismyfood.aux.ActorSystemContainer
-import info.whereismyfood.modules.business.Business
-import info.whereismyfood.modules.business.Business.DSTypes
-import info.whereismyfood.modules.user._
 import info.whereismyfood.modules.user._
 
 /**
@@ -16,7 +13,7 @@ object Login extends Directives with AuthenticationHandler {
   import info.whereismyfood.modules.user.CredsJsonSupport._
 
   private def success(user: GenericUser) = {
-    val encodedToken = createToken(user)
+    val encodedToken = createTokenFromUser(user)
     HttpResponse(StatusCodes.OK, entity = encodedToken)
   }
 

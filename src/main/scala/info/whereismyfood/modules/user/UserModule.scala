@@ -23,17 +23,23 @@ abstract class UserActor extends Actor {
 
   protected def updateOrCreateInDB: (UserJson, RoleID) => Option[_ <: GenericUser]
 
-  def updateOrCreateUser(userJson: UserJson, role: RoleID) = {
-    //save details only if new, and save list of businessIds for all.
-    updateOrCreateInDB(userJson, role) match {
-        case Some(_) =>
-          sender ! addRemoveBusinessIds()
-        case _ => sender ! false
+  def updateUser(userJson: UserJson, roleID: RoleID = role): Boolean = {
+    GenericUser.getById(userJson.phone) match {
+      case Some(_) => updateOrCreateUser(userJson)
+      case _ => false
     }
+  }
 
+  def updateOrCreateUser(userJson: UserJson, role: RoleID = role): Boolean = {
     def addRemoveBusinessIds(): Boolean = {
       userJson.businessIds.forall(businessId => Business.addJobTo(userJson.phone, businessId, job)) &&
           userJson.businessIdsToRemove.forall(businessId => Business.removeJobFrom(userJson.phone, businessId, job))
+    }
+
+    //save details only if new, and save list of businessIds for all.
+    updateOrCreateInDB(userJson, role) match {
+      case Some(_) => addRemoveBusinessIds()
+      case _ => false
     }
   }
 }

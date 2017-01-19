@@ -6,7 +6,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
-import akka.http.scaladsl.server.directives.FutureDirectives
+import akka.http.scaladsl.server.directives.{Credentials, FutureDirectives}
 import info.whereismyfood.aux.MyConfig
 import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 import info.whereismyfood.modules.user._
@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsArray, JsNumber, JsString, JsValue}
 import spray.json.DefaultJsonProtocol
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 /**
@@ -44,8 +45,6 @@ trait AuthenticationHandler {
   val ENCRYPTION = Seq(Alg(ALGO), Typ("JWT"))
   val SECRET = MyConfig.get("jwt.secret")
 
-  val SHORT_EXP = Exp(System.currentTimeMillis()/1000 + (3 hours).toSeconds)
-
   def decodeJwt(token: String): Try[Jwt] = {
     DecodedJwt.validateEncodedJwt(
       token, // An encoded jwt as a string
@@ -56,63 +55,75 @@ trait AuthenticationHandler {
     )
   }
 
-  def createToken(account: GenericUser): String = {
-      createToken(account.phone,
-        account.deviceId.get,
-        account.businessIds,
-        account.role)
+  def createTokenFromUser(account: GenericUser, expiry: Option[Duration] = None): String = {
+    createTokenFromCreds(account.creds, expiry)
   }
 
-  def createToken(userId: String, uuid: String, businessIds: Set[Long], role: Long): String = {
+  def createTokenFromCreds(creds: Creds, expiry: Option[Duration] = None): String = {
+    createToken(creds.phone,
+      creds.deviceId.get,
+      creds.businessIds,
+      creds.role, expiry)
+  }
+
+  def createToken(userId: String, uuid: String, businessIds: Set[Long], role: Long, expiry: Option[Duration] = None): String = {
+    def getExp = {
+      //throws exception if expiry not defined
+      Exp(System.currentTimeMillis + expiry.get.toMillis)
+    }
+
+    val claims = Seq(Iss(userId),
+      Uuid(uuid),
+      Busid(businessIds),
+      Aud(role.toString))
+
     val jwt = new DecodedJwt(ENCRYPTION,
-      Seq(Iss(userId),
-        Uuid(uuid),
-        Busid(businessIds),
-        Aud(role.toString)))
+      if(expiry.isDefined) claims :+ getExp else claims)
+
     jwt.encodedAndSigned(SECRET)
   }
 
-  def checkJwt: Directive1[Creds] = {
-    parameter('token ? "").flatMap {
-      case "" =>
-        extract { ctx =>
-          import ctx.materializer
-          ctx.request.entity.toStrict(FiniteDuration(5, TimeUnit.MILLISECONDS))
-        }.flatMap { entity =>
-          import FutureDirectives._
-
-          onComplete(entity).flatMap {
-            case Success(x) ⇒
-              val body = x.getData().utf8String
-              val token = extractJwt(body)
-              checkJwtToken(token)
-            case Failure(t) ⇒ complete(401)
-          }
+  def checkCredentials(credentials: Credentials): Future[Option[Creds]] = {
+    credentials match {
+      case p@Credentials.Provided(token) =>
+        checkJwtToken(token) match {
+          case (creds@Some(_), 200, _) =>
+            Future.successful(creds)
+          case _ =>
+            println("Shit")
+            Future.successful(None)
         }
-      case token =>
-        checkJwtToken(token)
+      case _ =>
+        println("Shitter")
+        Future.successful(None)
     }
   }
 
-  private def checkJwtToken(token: String): Directive1[Creds] ={
+  protected def checkJwtToken(token: String): (Option[Creds], Int, String) ={
     if(token.startsWith(GUEST)){
-      return provide((ClientUser getOrCreate token).toCreds())
+      return (Some((ClientUser getOrCreate token).toCreds()), 200, "")
     }
 
     val parsed = decodeJwt(token)
     if (parsed.isFailure) {
-      complete(401)
+      (None, 401, "Error parsing token")
     }
     else {
       try {
-        val phone = parsed.get.getClaim[Iss].get.value
-        val uuid = parsed.get.getClaim[Uuid].get.value
-        if(false)
-        UserRouter.getJwtFor(phone) match {
-          case Some(jwt) if jwt != token =>
-              return complete(HttpResponse(StatusCodes.UpgradeRequired, entity = jwt))
+        parsed.get.getClaim[Exp] match {
+          case Some(exp) if exp.value < System.currentTimeMillis =>
+            return upgradeRequired()
           case _ =>
         }
+
+        val phone = parsed.get.getClaim[Iss].get.value
+        UserRouter.getJwtFor(phone) match {
+          case Some(jwt) if jwt != token =>
+              return upgradeRequired(jwt)
+          case _ =>
+        }
+
+        val uuid = parsed.get.getClaim[Uuid].get.value
         val busid = parsed.get.getClaim[Busid].get.value
         val role = parsed.get.getClaim[Aud].get.value match {
           case Left(x) => Roles(x)
@@ -122,14 +133,15 @@ trait AuthenticationHandler {
         //This is separate from creds because I don't want to receive it from the user
         creds.setRole(role)
         creds.setBusinesses(busid)
-        provide(creds)
+        (Some(creds), 200, "")
       } catch {
         case x: Exception =>
           log.error("Error while parsing decoded jwt", x)
-          complete(401)
+          (None, 401, "Invalid token")
       }
     }
   }
+  protected def upgradeRequired(res: String = ""): (Option[Creds], Int, String) = (None, StatusCodes.UpgradeRequired.intValue, res)
   private val jwtRegex = """"jwt":\s*"(.*?)"""".r
 
   private def extractJwt(data: String): String ={

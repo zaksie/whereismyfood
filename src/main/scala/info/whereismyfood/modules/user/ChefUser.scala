@@ -70,10 +70,7 @@ final case class ChefUser(override val creds: Creds) extends GenericUser(creds) 
   def isTransactionalExpired: Boolean = {
     import transactionalUser._
     println(s"Checking if $phone is transactional")
-    Await.result[Boolean](Databases.inmemory.retrieve(prefix + phone).map{ x =>
-      println(x.getOrElse("UNDEFINED"))
-      x.isEmpty
-    }, 10 seconds)
+    Await.result[Boolean](Databases.inmemory.retrieve(prefix + phone).map(_.isEmpty), 10 seconds)
   }
 
   def getTransactionalExpiry: Option[Long] = {

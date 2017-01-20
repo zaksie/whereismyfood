@@ -24,10 +24,10 @@ object OpenOrderRoutes {
   val orderActorRef = Await.result(system.actorSelection("/user/modules/order").resolveOne(), resolveTimeout.duration)
 
   def routes(implicit creds: Creds) = {
-    pathPrefix("orders" / "open" / "this-user") {
+    pathPrefix("orders" / "open" / "me") {
       pathEndOrSingleSlash {
         get {
-          log.info(s"GET In /orders/open/this-user[${creds.phone}]")
+          log.info(s"GET In /orders/open/me[${creds.phone}]")
           Await.result(orderActorRef ? GetOpenOrderForUser(creds), resolveTimeout.duration)
               .asInstanceOf[Option[OpenOrder]] match {
             case None => complete("{}")
@@ -39,7 +39,7 @@ object OpenOrderRoutes {
             put {
               import info.whereismyfood.modules.menu.DishJsonSupport._
               entity(as[DishToAdd]) { item =>
-                log.info(s"PUT In /orders/open/this-user[${creds.phone}]")
+                log.info(s"PUT In /orders/open/me[${creds.phone}]")
                 Await.result(orderActorRef ? PutOrderItemForUser(creds, item), resolveTimeout.duration)
                     .asInstanceOf[Option[OrderItem]] match {
                   case Some(res) =>
@@ -51,7 +51,7 @@ object OpenOrderRoutes {
             }
       } ~
           (delete & path(Segment)) { itemId =>
-            log.info(s"DELETE In /orders/open/this-user[${creds.phone}]/itemId[$itemId]")
+            log.info(s"DELETE In /orders/open/me[${creds.phone}]/itemId[$itemId]")
             if (Await.result(orderActorRef ? DeleteOrderItemForUser(creds, itemId), resolveTimeout.duration)
                 .asInstanceOf[Boolean]) {
               complete(200)

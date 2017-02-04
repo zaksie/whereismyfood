@@ -42,6 +42,7 @@ private object FieldNames {
   val _image = "image"
   val _verified = "verified"
   val _vehicleType = "vehicleType"
+  val _ref = "ref"
 }
 
 trait HasPropsFunc[T <: GenericUser] {
@@ -181,6 +182,7 @@ trait GenericUserTrait[T <: GenericUser]{
               .setImage(user.image)
               .setVehicleType(user.vehicleType)
               .setRole(role)
+              .setRef()
         }.save)
     }
   }
@@ -208,6 +210,12 @@ trait GenericUserTrait[T <: GenericUser]{
 
       creds.setRole(entity.getLong(_role))
       creds.setBusinesses(Business.getIdsFor(creds.phone, jobInBusiness))
+      Try(entity.getString(_ref)).toOption match {
+        case Some(ref) =>
+          creds.setRef(ref)
+        case _ =>
+          creds.setRef()
+      }
       log.info(s"Got business list for $jobInBusiness: ${creds.businessIds.mkString(",")}")
       val obj: T = of(creds)
       obj.extendFromDatastore(entity)
@@ -286,6 +294,12 @@ abstract class GenericUser(val creds: Creds)
   def verified: Boolean = creds.verified
   def image: Option[String] = creds.image
   def vehicleType: Option[String] = creds.vehicleType
+  def ref: String = {
+    if(creds.ref.isEmpty) {
+      creds.setRef()
+      creds.ref.get
+    } else creds.ref.get
+  }
 
   def verify(apiKey: APIKey): this.type = {
     creds.setDeviceIdIfNone(apiKey.uuid)
@@ -296,7 +310,7 @@ abstract class GenericUser(val creds: Creds)
   def _copy: Creds => _ <: GenericUser
 
   def toCreds(otp: Option[String] = None) : Creds ={
-    creds.copy(otp = otp)
+    creds.deepCopy.setOtp(otp)
   }
 
   def save: this.type ={
@@ -383,6 +397,7 @@ abstract class GenericUser(val creds: Creds)
           .set(_role, role)
           .set(_verified, verified)
           .set(_vehicleType, vehicleType.getOrElse(""))
+          .set(_ref, ref)
 
       val addr = address match {
         case Some(a) => a

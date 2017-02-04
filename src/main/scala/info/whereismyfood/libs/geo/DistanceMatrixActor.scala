@@ -4,8 +4,9 @@ import akka.actor.Status.Failure
 import akka.actor.{Actor, Props}
 import com.google.maps.model.{DistanceMatrix, DistanceMatrixElementStatus, TravelMode, LatLng => GoogleLatLng}
 import com.google.maps.DistanceMatrixApi
+import info.whereismyfood.libs.geo.DistanceMatrixActor.Points
 import info.whereismyfood.modules.geo
-import info.whereismyfood.modules.geo.{Address, DistanceEx, LatLng,  DistanceMatrix => MyDistanceMatrix}
+import info.whereismyfood.modules.geo.{Address, DistanceEx, LatLng, DistanceMatrix => MyDistanceMatrix}
 
 
 /**
@@ -13,6 +14,7 @@ import info.whereismyfood.modules.geo.{Address, DistanceEx, LatLng,  DistanceMat
   */
 object DistanceMatrixActor {
   def props = Props[DistanceMatrixActor]
+  type Points = Seq[LatLng]
 }
 
 class DistanceMatrixActor extends Actor {
@@ -20,7 +22,7 @@ class DistanceMatrixActor extends Actor {
   import GoogleGeoAPIContext._
 
   override def receive: Receive = {
-    case points: Seq[LatLng] =>
+    case points: Points =>
       //if(points.length > MAX_ALLOWABLE_LENGTH) throw new Exception("Exceeded maximum coordinate set count of " + MAX_ALLOWABLE_LENGTH)
       val groups = points.map(_.toGoogleLatLng).grouped(MAX_ALLOWABLE_LENGTH).toSeq
       val dm = MyDistanceMatrix()

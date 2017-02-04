@@ -25,10 +25,10 @@ object ProcessedOrder{
   type OrderStatus = String
 
   case object OrderStatuses {
-    def isReady(o: ProcessedOrder): Boolean = o.status == READY || o.ready
+    def isReady(o: ProcessedOrder): Boolean = o.status == READY || o.ready || isEnroute(o)
     def isEnroute(o: ProcessedOrder): Boolean = o.status == ENROUTE
-    def notYetShipped(o: ProcessedOrder): Boolean = o.status == PREPARING || o.status == READY
     def isOpen(o: ProcessedOrder): Boolean = o.status == OPEN
+    def isOngoing(o: ProcessedOrder): Boolean = o.status != DELIVERED
 
     val OPEN = "open"
     val PREPARING = "preparing"
@@ -56,7 +56,7 @@ object ProcessedOrder{
   val _deliveryMode = "deliveryMode"
 
   def of(order: Order)(implicit businessId: Long): ProcessedOrder = {
-    ProcessedOrder(businessId, order.id, order.timestamp, order.client, order.contents.flatMap(_.toOrderItem))
+    ProcessedOrder(businessId, order.id, order.timestamp, order.client, order.contents.flatMap(_.toOrderItem), order.deliveryMode)
   }
 
   implicit val byteStringFormatter = new ByteStringFormatter[ProcessedOrder] {
@@ -97,10 +97,9 @@ object ProcessedOrder{
         val key = getSetKey(orders.businessId)
         val res = Databases.inmemory.retrieveSet[String](key).flatMap {
           case Seq() =>
-            println("TRUE")
             Future.successful(true)
           case existingIds =>
-            println("CHECKING")
+            println("Checking for order ID conflict")
             Future.successful(existingIds.intersect(ids).isEmpty)
         }
         Await.result[Boolean](res, 30 seconds)
@@ -140,19 +139,19 @@ object ProcessedOrder{
 
   def retrieveAllActive(businessId: Long): Seq[ProcessedOrder] = {
     val processedOrders = Databases.inmemory.retrieveSet[String](getSetKey(businessId)).flatMap{
-      case Seq() =>
-        Future.successful(Seq())
+      case Seq() => Future.successful(Seq())
       case orderKeys => Databases.inmemory.retrieve[ProcessedOrder](orderKeys:_*)
     }
 
     Await.result[Seq[ProcessedOrder]](processedOrders, 15 seconds)
   }
 
-  def mark(businessId: Long, orderId: String, ready: Boolean): Boolean ={
+  def mark(businessId: Long, orderId: String): Option[ProcessedOrder] ={
     retrieveSingle(businessId, orderId) match{
-      case Some(order)=>
-        saveSingle(order.copyWithReady(ready))
-      case _ => false
+      case _order @ Some(order)=>
+        saveSingle(order.copyWithReady(!order.ready))
+        _order
+      case _ => None
     }
   }
 
@@ -164,11 +163,20 @@ object ProcessedOrder{
     //TODO: check if redis indeed deletes
     true
   }
+
+  def getOrderState(businessId: Long, orderId: String): Option[OrderReady] = {
+    retrieveSingle(businessId, orderId) match {
+      case Some(order) =>
+        Some(OrderReady(order.id, Some(order.ready)))
+      case _ =>
+        None
+    }
+  }
 }
 
 case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client: Creds, contents: Seq[OrderItem],
+                          deliveryMode: DeliveryMode = DeliveryModes.NA,
                           ready: Boolean = false, courier: Option[UserJson] = None,
-                          deliveryMode: String = DeliveryModes.sitin,
                           status: OrderStatus = OrderStatuses.OPEN, route: Option[DeliveryRoute] = None)
     extends DatastoreStorable with KVStorable{
   def demand: Int = contents.size
@@ -179,23 +187,24 @@ case class ProcessedOrder(businessId: Long, id: String, timestamp: Long, client:
     case _ => ""
   }
   override def asDatastoreEntity: Option[FullEntity[_]] = {
-    val key = datastore.newKeyFactory().setKind(kind).newKey(businessId + id)
-    val entity = Entity.newBuilder(key)
-    entity.set(_orderId, id)
-    entity.set(_timestamp, timestamp)
-    entity.set(_businessId, businessId)
-    entity.set(_clientPhone, client.phone)
-    if(client.geoaddress.isDefined)
+    Try {
+      val key = datastore.newKeyFactory().setKind(kind).newKey(businessId + id)
+      val entity = Entity.newBuilder(key)
+        .set(_orderId, id)
+        .set(_timestamp, timestamp)
+        .set(_businessId, businessId)
+        .set(_clientPhone, client.phone)
+        .set(_status, status)
+        .set(_deliveryMode, deliveryMode.asDatastoreEntity.get)
+        .set(_route, route.getOrElse(DeliveryRoute.empty).polyline)
+        .set(_items, contents.map(x => new EntityValue(x.asDatastoreEntity(kind).get)).asJava)
+      if (client.geoaddress.isDefined)
         entity.set(_clientLatLng, client.geoaddress.get.latLng.toDatastoreLatLng)
-    entity.set(_items, contents.map(x => new EntityValue(x.asDatastoreEntity.get)).asJava)
+      if (courier.isDefined)
+        entity.set(_courierPhone, courier.get.phone)
 
-    if(courier.isDefined)
-      entity.set(_courierPhone, courier.get.phone)
-    entity.set(_status, status)
-    entity.set(_deliveryMode, deliveryMode)
-    entity.set(_route, route.getOrElse(DeliveryRoute.empty).polyline)
-
-    Option(entity.build())
+      entity.build()
+    }.toOption
   }
 
   override def key: String = ProcessedOrder.getKey(businessId, id)
@@ -207,6 +216,7 @@ object ProcessedOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSuppo
   import info.whereismyfood.modules.geo.DeliveryRouteJsonSupport._
   import info.whereismyfood.modules.user.CredsJsonSupport._
   import info.whereismyfood.modules.user.UserJsonSupport._
+  import DeliveryModeJsonSupport._
   implicit val formatter = jsonFormat(ProcessedOrder.apply, "businessId", "id", "timestamp",
-    "client", "contents", "ready", "courier", "deliveryMode", "status", "route")
+    "client", "contents", "deliveryMode", "ready", "courier", "status", "route")
 }

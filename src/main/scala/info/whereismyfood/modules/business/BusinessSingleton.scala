@@ -31,6 +31,8 @@ import scala.concurrent.duration._
 case object OnOrderMarkChange
 case object PeriodicDispatchAttempt
 
+case class NotifyChefs(orders: Seq[ProcessedOrder])
+
 // Outgoing case classes/objects
 case class ReadyToShipOrders(businessId: Long, orders: Seq[ProcessedOrder]){
   def save(): Boolean = {
@@ -43,6 +45,7 @@ case class ReadyToShipOrders(businessId: Long, orders: Seq[ProcessedOrder]){
     orders.toJson.compactPrint withOpCode OpCodes.Chef.enroute
   }
 }
+
 
 object BusinessSingleton{
   private val prefix = "BusinessSingletonActor-"
@@ -81,6 +84,8 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
   override def receive: Receive = {
     case OnOrderMarkChange | PeriodicDispatchAttempt =>
       publishMark.onNext()
+    case NotifyChefs(orders) =>
+      mediator ! Publish(Topics.newOrders(business.id), orders)
   }
 
   def attemptDispatchOrders(): Unit = {
@@ -163,8 +168,8 @@ class BusinessSingleton(business: Business) extends Actor with ActorLogging {
         }._2
 
         val shipment = ReadyToShipOrders(business.id, batch)
-        mediator ! Publish(Topics.courierUpdates + vehicle.phone, shipment)
-        mediator ! Publish(Topics.chefUpdates + business.id, shipment)
+        mediator ! Publish(Topics.courierUpdates(vehicle.phone), shipment)
+        mediator ! Publish(Topics.chefUpdates(business.id), shipment)
         shipment.save
       case _ =>
         log.error("unexpected error in dispatchOrder :(")

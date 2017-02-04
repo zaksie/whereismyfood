@@ -1,5 +1,7 @@
 package info.whereismyfood.libs.math
 
+import java.util.UUID
+
 import scala.collection.mutable
 
 /**
@@ -18,5 +20,9 @@ object Misc {
     }
 
     set.toSet
+  }
+
+  def generateUUID(): String = {
+    UUID.randomUUID.toString
   }
 }

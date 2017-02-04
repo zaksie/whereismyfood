@@ -4,7 +4,7 @@ import java.sql.{DriverManager, SQLException, Statement}
 
 import info.whereismyfood.aux.MyConfig
 import org.slf4j.LoggerFactory
-
+import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 /**
   * Created by zakgoichman on 11/16/16.
   */
@@ -20,13 +20,20 @@ object CloudSQLClient {
     "jdbc:mysql://google/%s?cloudSqlInstance=%s&"
       + "socketFactory=com.google.cloud.sql.mysql.SocketFactory",
     databaseName,
-    instanceConnectionName);
+    instanceConnectionName)
 
   val ip = MyConfig.get("google.cloudsql.ip")
-  private val url =
+  private val url = if(ip != "127.0.0.1") jdbcUrl else
     s"""jdbc:mysql://$ip/whereismyfood?user=$username
        |&password=$password""".stripMargin
-  private def createConnection = DriverManager.getConnection(url, username, password)
+
+  private def createConnection = {
+    val c = DriverManager.getConnection(url, username, password)
+    c.setNetworkTimeout(system.dispatcher, 1000*3600*24*7)
+    println("CREATING NEW CONNECTION TO CLOUDSQL")
+    c
+  }
+
   private var connection = createConnection
 
   def createStatement(): Statement = try{

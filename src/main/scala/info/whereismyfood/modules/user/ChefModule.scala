@@ -15,10 +15,10 @@ import info.whereismyfood.aux.ActorSystemContainer.Implicits._
 object ChefModule {
   case object RequestToken
   case class UpdateChef(userJson: UserJson)
-  def props = Props[ChefActor]
+  def props = Props[ChefInfoActor]
 }
 
-class ChefActor extends UserActor {
+class ChefInfoActor extends UserInfoActor {
   import ChefModule._
   private implicit val executionContext = system.dispatcher
 

@@ -9,10 +9,10 @@ import info.whereismyfood.modules.user.Roles.RoleID
   */
 
 object ManagerModule {
-  def props = Props[ManagerActor]
+  def props = Props[ManagerInfoActor]
 }
 
-class ManagerActor extends UserActor {
+class ManagerInfoActor extends UserInfoActor {
   override protected val job = Business.DSTypes.owners
   override protected val role: RoleID = Roles.manager
   override protected def updateOrCreateInDB = ManagerUser.of

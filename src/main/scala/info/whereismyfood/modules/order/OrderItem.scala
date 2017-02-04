@@ -1,6 +1,7 @@
 package info.whereismyfood.modules.order
 
 import java.util.UUID
+import javafx.scene.Parent
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import com.google.cloud.datastore._
@@ -9,6 +10,7 @@ import info.whereismyfood.modules.business.Business
 import info.whereismyfood.modules.menu.{Dish, DishToAdd}
 import spray.json.DefaultJsonProtocol
 
+import info.whereismyfood.libs.database.Databases.persistent.{client => datastore}
 
 /**
   * Created by zakgoichman on 11/8/16.
@@ -16,7 +18,7 @@ import spray.json.DefaultJsonProtocol
 object OrderItem {
   val kind = "OrderItem"
   def of(dish: Dish, x: DishToAdd): Option[OrderItem] = {
-    Some(OrderItem(UUID.randomUUID.toString, x.businessId, dish, x.notes))
+    Some(OrderItem(UUID.randomUUID.toString, x.orderId.get, x.businessId.get, dish, x.notes))
   }
   def of(x: DishToAdd): Option[OrderItem] = {
     Dish.find(x.dishId) match {
@@ -26,12 +28,13 @@ object OrderItem {
     }
   }
 }
-case class OrderItem(id: String, businessId: Long, dish: Dish, notes: String) extends DatastoreStorable with KVStorable {
+case class OrderItem(id: String, orderId: String, businessId: Long, dish: Dish, notes: String) extends KVStorable {
   import OrderItem._
-  override def asDatastoreEntity: Option[FullEntity[_ <: IncompleteKey]] = {
+
+  def asDatastoreEntity(parentKind: String): Option[FullEntity[_ <: IncompleteKey]] = {
     val key = datastore.newKeyFactory()
         .setKind(kind)
-        .addAncestor(PathElement.of(Business.kind, businessId))
+        .addAncestor(PathElement.of(parentKind, orderId))
         .newKey(id)
     val entity = FullEntity.newBuilder(key)
     entity.set("dishId", dish.id) //TODO: add storage and retrieval of full record with `dish`
@@ -44,7 +47,7 @@ case class OrderItem(id: String, businessId: Long, dish: Dish, notes: String) ex
 
 object OrderItemJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import info.whereismyfood.modules.menu.DishJsonSupport._
-  implicit val itemFormat = jsonFormat4(OrderItem.apply)
+  implicit val itemFormat = jsonFormat5(OrderItem.apply)
 }
 
 

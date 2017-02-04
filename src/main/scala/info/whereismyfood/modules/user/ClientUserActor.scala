@@ -16,7 +16,7 @@ import scala.collection.mutable
 case class ClientSubscriptions(override val actor: ActorRef)
                               (implicit override val user: ClientUser, implicit override val mediator: ActorRef)
   extends Subscriptions(actor){
-  override def selfTopic: String = Topics.clientUpdates + user.phone
+  override def selfTopic: String = Topics.clientUpdates(user.phone)
 }
 
 object ClientUserActor extends HasPropsFunc[ClientUser] {

@@ -7,7 +7,7 @@ import info.whereismyfood.modules.business.BusinessModule
 import info.whereismyfood.modules.geo.OptRouteModule
 import info.whereismyfood.modules.menu.{DishModule, MenuModule}
 import info.whereismyfood.modules.order.OrderModule
-import info.whereismyfood.modules.user.{AdminUserAssets, ChefModule, CourierModule, ManagerModule}
+import info.whereismyfood.modules.user._
 
 /**
   * Created by zakgoichman on 10/21/16.
@@ -22,6 +22,7 @@ class ModuleActors extends Actor {
   context.actorOf(CourierModule.props.withRouter(RoundRobinPool(size)), "couriers")
   context.actorOf(ManagerModule.props.withRouter(RoundRobinPool(size)), "managers")
   context.actorOf(ChefModule.props.withRouter(RoundRobinPool(size)), "chefs")
+  context.actorOf(ClientModule.props.withRouter(RoundRobinPool(size)), "clients")
   context.actorOf(DishModule.props.withRouter(RoundRobinPool(size)), "dishes")
   context.actorOf(MenuModule.props.withRouter(RoundRobinPool(size)), "menus")
   context.actorOf(AdminUserAssets.props.withRouter(RoundRobinPool(big)), "admin")

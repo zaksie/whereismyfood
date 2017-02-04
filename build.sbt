@@ -36,7 +36,9 @@ libraryDependencies ++= {
     "com.github.etaty" % "rediscala_2.11" % "1.6.0",
     "me.chrons" % "boopickle_2.11" % "1.2.5",
     "com.twilio.sdk" % "twilio-java-sdk" % "7.0.0-rc-10",
-    "io.monix" %% "monix" % "2.1.1"
+    "io.monix" %% "monix" % "2.1.1",
+
+    "com.paypal.sdk" % "rest-api-sdk" % "1.13.0"
   )
 }
 

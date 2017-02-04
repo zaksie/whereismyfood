@@ -1,11 +1,14 @@
 package info.whereismyfood.modules.business
 
-import akka.actor.{Actor, ActorContext, ActorLogging, PoisonPill, Props}
+import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, PoisonPill, Props}
 import akka.cluster.Cluster
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
 import info.whereismyfood.aux.ActorSystemContainer
 import info.whereismyfood.aux.MyConfig.ActorNames
+import ActorSystemContainer.Implicits._
+import info.whereismyfood.modules.user.Roles.api.business
 
+import scala.concurrent.Future
 /**
   * Created by zakgoichman on 11/16/16.
   */
@@ -37,6 +40,11 @@ object BusinessScanner {
       ScanForBusinesses)(context.system.dispatcher)
   }
   def props = Props[BusinessScanner]
+
+  def getBusinessSingleton(id: Long): Future[ActorRef] = {
+    val path = ActorNames.Paths.businessManager+ "-proxy/"  + BusinessSingleton.getName(id)
+    system.actorSelection(path).resolveOne()
+  }
 }
 
 class BusinessScanner extends Actor with ActorLogging{

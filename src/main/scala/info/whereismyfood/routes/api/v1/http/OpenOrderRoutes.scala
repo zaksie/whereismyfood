@@ -38,6 +38,7 @@ object OpenOrderRoutes {
         } ~
             put {
               import info.whereismyfood.modules.menu.DishJsonSupport._
+              log.info("In orders/open/me PUT")
               entity(as[DishToAdd]) { item =>
                 log.info(s"PUT In /orders/open/me[${creds.phone}]")
                 Await.result(orderActorRef ? PutOrderItemForUser(creds, item), resolveTimeout.duration)

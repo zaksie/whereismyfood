@@ -23,7 +23,7 @@ case class Orders(businessId: Long, orders: Seq[Order]) extends OrderCommon{
   override def getBusinessId: Long = businessId
   def isValid: OrderError ={
     orders.find(x=>x.client.phone.isEmpty ||
-        (x.deliveryMode == DeliveryModes.delivery &&  x.client.geoaddress.isEmpty)) match {
+        (x.deliveryMode.isDelivery &&  x.client.geoaddress.isEmpty)) match {
       case Some(faultyOrder) =>
         if(faultyOrder.client.phone.isEmpty) OrderError(s"Phone field missing for order ${faultyOrder.id}")
         else OrderError(s"Address field either missing or couldn't be geocoded for order ${faultyOrder.id}")
@@ -33,7 +33,7 @@ case class Orders(businessId: Long, orders: Seq[Order]) extends OrderCommon{
   }
 }
 
-case class OrderReady(orderId: String, ready: Boolean)
+case class OrderReady(orderId: String, ready: Option[Boolean])
 
 object OrdersJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import OrderJsonSupport._

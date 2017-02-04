@@ -58,12 +58,12 @@ case class Dish(id: Long, businessIds: Seq[Long], title: String,
     }.toOption
   }
 }
-case class DishToAdd(businessId: Long, dishId: Long, notes: String){
+case class DishToAdd(orderId: Option[String], businessId: Option[Long], dishId: Long, notes: String){
   def toOrderItem: Option[OrderItem] = OrderItem.of(this)
 }
 
 object DishJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import PriceJsonSupport._
-  implicit val dishToAddFormat = jsonFormat3(DishToAdd)
+  implicit val dishToAddFormat = jsonFormat4(DishToAdd)
   implicit val dishFormat = jsonFormat6(Dish.apply)
 }

@@ -10,6 +10,7 @@ import info.whereismyfood.libs.LibActors
 import info.whereismyfood.libs.database.Databases
 import info.whereismyfood.modules.ModuleActors
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 /**
@@ -61,5 +62,12 @@ object ActorSystemContainer {
     implicit def Int2String(i: Int): ToResponseMarshallable = StatusCode.int2StatusCode(i)
 
     implicit def Boolean2Route(b: Boolean): ToResponseMarshallable = if (b) StatusCode.int2StatusCode(200) else StatusCode.int2StatusCode(403)
+
+    def toResponse(value: Any): ToResponseMarshallable = value match {
+      case n: Number => n.intValue
+      case s: String => s
+      case b: Boolean => b
+      case _ => ""
+    }
   }
 }

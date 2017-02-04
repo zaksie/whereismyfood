@@ -31,7 +31,7 @@ object UserActorUtils {
 
   abstract class Subscriptions(val actor: ActorRef)(implicit val user: GenericUser, implicit val mediator: ActorRef) {
     import ActorSystemContainer.Implicits._
-    private val subscriptions: mutable.Set[String] = mutable.Set()
+    protected val subscriptions: mutable.Set[String] = mutable.Set()
     implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
     def selfTopic: String

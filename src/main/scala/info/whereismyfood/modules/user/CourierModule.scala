@@ -10,10 +10,10 @@ import info.whereismyfood.modules.user.Roles.RoleID
   */
 
 object CourierModule {
-  def props = Props[CourierActor]
+  def props = Props[CourierInfoActor]
 }
 
-class CourierActor extends UserActor {
+class CourierInfoActor extends UserInfoActor {
   override protected val job = Business.DSTypes.couriers
   override protected val role: RoleID = Roles.courier
   override protected def updateOrCreateInDB = CourierUser.of

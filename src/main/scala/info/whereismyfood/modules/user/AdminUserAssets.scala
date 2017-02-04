@@ -12,16 +12,23 @@ import spray.json.DefaultJsonProtocol
   */
 
 object AdminUserAssets {
+
   case class Businesses(businesses: Set[Business], ids: Set[Long])
 
   case class GetMenus(creds: Creds)
+
   case class GetDishes(creds: Creds)
+
   case class GetCouriers(creds: Creds)
+
   case class GetOwners(creds: Creds)
+
   case class GetChefs(creds: Creds)
+
   case class GetBusinesses(creds: Creds)
 
   def props = Props[AdminUserAssetsActor]
+
   //TODO: refactor with separate endpoint for each asset
   def getAllFor(implicit creds: Creds): AdminUserAssets = {
     val b = getBusinessesInternal
@@ -31,7 +38,7 @@ object AdminUserAssets {
     val chefs = getChefs
     val owners = getOwners
 
-      AdminUserAssets(b.businesses, couriers.couriers, dishes.dishes, menus.menus, owners.owners, chefs.terminals)
+    AdminUserAssets(b.businesses, couriers.couriers, dishes.dishes, menus.menus, owners.owners, chefs.terminals)
   }
 
   private def getBusinessesInternal(implicit creds: Creds): Businesses = {
@@ -39,42 +46,44 @@ object AdminUserAssets {
     val businessIds = businesses.map(_.id)
     Businesses(businesses, businessIds)
   }
+
   def getBusinesses(implicit creds: Creds): AdminUserAssets = {
     val b = getBusinessesInternal
-      AdminUserAssets(b.businesses)
+    AdminUserAssets(b.businesses)
   }
 
   def getCouriers(implicit creds: Creds): AdminUserAssets = {
     val b = getBusinessesInternal
-    val couriers: Set[UserJson] = CourierUser.getById(b.businesses.flatMap(_.couriers).toSeq:_*).map(_.toJson(b.ids)).toSet
-      AdminUserAssets(businesses = b.businesses, couriers = couriers)
+    val couriers: Set[UserJson] = CourierUser.getById(b.businesses.flatMap(_.couriers).toSeq: _*).map(_.toJson(b.ids)).toSet
+    AdminUserAssets(businesses = b.businesses, couriers = couriers)
   }
 
   def getOwners(implicit creds: Creds): AdminUserAssets = {
     val b = getBusinessesInternal
-    val owners: Set[UserJson] = ManagerUser.getById(b.businesses.flatMap(_.owners).toSeq:_*).map(_.toJson(b.ids)).toSet
-      AdminUserAssets(businesses = b.businesses, owners = owners)
+    val owners: Set[UserJson] = ManagerUser.getById(b.businesses.flatMap(_.owners).toSeq: _*).map(_.toJson(b.ids)).toSet
+    AdminUserAssets(businesses = b.businesses, owners = owners)
   }
 
   def getChefs(implicit creds: Creds): AdminUserAssets = {
     val b = getBusinessesInternal
-    val chefs: Set[UserJson] = ChefUser.getById(b.businesses.flatMap(_.chefs).toSeq:_*)
-        .filter(x =>x.verified || !x.isTransactionalExpired)
-        .map(x=>x.toJson(b.ids, x.getTransactionalExpiry))
+    val chefs: Set[UserJson] = ChefUser.getById(b.businesses.flatMap(_.chefs).toSeq: _*)
+        .filter(x => x.verified || !x.isTransactionalExpired)
+        .map(x => x.toJson(b.ids, x.getTransactionalExpiry))
         .toSet
-      AdminUserAssets(businesses = b.businesses, terminals = chefs)
+    AdminUserAssets(businesses = b.businesses, terminals = chefs)
   }
 
   def getDishes(implicit creds: Creds): AdminUserAssets = {
     val bs = getBusinessesInternal
     val dishes: Set[Dish] = bs.businesses.flatMap(b => Dish.getRecordsByBusinessId(b.id))
-      AdminUserAssets(businesses = bs.businesses, dishes = dishes)
+    AdminUserAssets(businesses = bs.businesses, dishes = dishes)
   }
 
   def getMenus(implicit creds: Creds): AdminUserAssets = {
     val bs = getBusinessesInternal
     val menus: Set[Menu] = bs.businesses.flatMap(b => Menu.getRecordsByBusinessId(b.id))
-      AdminUserAssets(businesses = bs.businesses, menus = menus)
+    val dishes = getDishes.dishes
+    AdminUserAssets(businesses = bs.businesses, menus = menus, dishes = dishes)
   }
 }
 case class AdminUserAssets(businesses: Set[Business], couriers: Set[UserJson] = Set(),

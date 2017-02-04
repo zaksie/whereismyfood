@@ -3,6 +3,7 @@ package info.whereismyfood.modules.user
 import com.google.cloud.datastore.FullEntity.Builder
 import com.google.cloud.datastore.{Entity, Key, StringValue}
 import info.whereismyfood.aux.ActorSystemContainer.Implicits.system
+import info.whereismyfood.libs.auth.OTP
 import info.whereismyfood.libs.database.Databases
 import info.whereismyfood.modules.business.Business
 import info.whereismyfood.modules.user.Roles.RoleID
@@ -62,7 +63,6 @@ final case class ChefUser(override val creds: Creds) extends GenericUser(creds) 
   override def _copy = copy _
 
   override def getOTPBody(code: String*): String = ???
-
   override def extendDatastoreEntity(entity: Builder[Key]): Unit = {}
 
   override def extendFromDatastore(entity: Entity): this.type = this
@@ -75,7 +75,8 @@ final case class ChefUser(override val creds: Creds) extends GenericUser(creds) 
 
   def getTransactionalExpiry: Option[Long] = {
     import transactionalUser._
-    Await.result[Option[Long]](Databases.inmemory.redis.ttl(prefix + phone)
+    if(verified) None
+    else Await.result[Option[Long]](Databases.inmemory.redis.ttl(prefix + phone)
         .map(x=> if(x < 0) None else Some(x*1000 /*expiry saved in seconds*/)), 10 seconds)
   }
 }

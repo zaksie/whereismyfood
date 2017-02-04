@@ -16,7 +16,7 @@ case class AddUser(user: UserJson){
     throw new Exception("PrevPhone, Phone missing")
 }
 
-abstract class UserActor extends Actor {
+abstract class UserInfoActor extends Actor {
   protected val mediator = DistributedPubSub(context.system).mediator
   protected val job: JobInBusiness
   protected val role: RoleID

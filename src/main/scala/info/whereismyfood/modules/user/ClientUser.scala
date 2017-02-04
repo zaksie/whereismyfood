@@ -13,7 +13,8 @@ import info.whereismyfood.modules.user.Roles.RoleID
 object ClientUser extends GenericUserTrait[ClientUser]{
   def getOrCreate(token: String): ClientUser = {
     ClientUser.getFromDatastore(token) match {
-      case Some(user) => user
+      case Some(user) =>
+        user
       case _ => ClientUser.of(token).save
     }
   }
@@ -25,20 +26,19 @@ object ClientUser extends GenericUserTrait[ClientUser]{
   override def requestOTP(phone: String): Boolean = {
     of(phone).requestOTP()
   }
-  def of(phone: String): ClientUser = of(Creds(phone))
+  def of(phone: String): ClientUser = of(Creds(phone).setRef)
   override def verifyOTP(creds: Creds): Option[ClientUser] = {
     val user = of(creds)
-    user.verifyOTP match {
-      case true =>
-        find(user.phone) match {
-          case existingUser@Some(_) =>
-            existingUser
-          case _ =>
-            user.creds.setVerified(true)
-            Some(user.save)
-        }
-      case _ => None
+    if(user.verifyOTP) {
+      find(user.phone) match {
+        case existingUser@Some(_) =>
+          existingUser
+        case _ =>
+          user.creds.setVerified(true)
+          Some(user.save)
+      }
     }
+    else None
   }
 }
 

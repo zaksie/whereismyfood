@@ -20,12 +20,13 @@ object MyConfig {
 
   object Topics{
     type ID = String
-    def courierIsOffline(implicit id: ID = "") = "courier-offline:" + id
-    def courierIsOnline(implicit id: ID = "") = "courier-online:"+ id
-    def courierGeolocation(implicit id: ID = "") = "courier-geolocation:"+ id
-    def clientUpdates(implicit id: ID = "") = "client-updates:"+ id
-    def courierUpdates(implicit id: ID = "") = "courier-updates:"+ id
-    def chefUpdates(implicit id: ID = "") = "chef-updates:"+ id
+    def courierIsOffline(id: ID = "") = "courier-offline:" + id
+    def courierIsOnline(id: ID = "") = "courier-online:"+ id
+    def courierGeolocation(id: ID = "") = "courier-geolocation:"+ id
+    def clientUpdates(id: ID = "") = "client-updates:"+ id
+    def courierUpdates(id: ID = "") = "courier-updates:"+ id
+    def chefUpdates(id: Long = -1) = "chef-updates:"+ (if(id == -1) "" else id.toString)
+    def newOrders(id: Long = -1) = "chef-new-order:"+ (if(id == -1) "" else id.toString)
   }
 
   object OpCodes{

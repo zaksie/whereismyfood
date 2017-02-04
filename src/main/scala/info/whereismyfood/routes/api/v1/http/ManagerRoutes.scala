@@ -96,6 +96,7 @@ object ManagerRoutes {
             complete(addCourier(formData))
           }
         }
+        //TODO: Add here and in owner a delete verb
       } ~
       //remove the nonsense about IntRegEx
       path("owner" / Segment) { phone =>

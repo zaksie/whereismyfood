@@ -9,6 +9,7 @@ import info.whereismyfood.modules.business.{BusinessSingleton, OnOrderMarkChange
 import info.whereismyfood.modules.geo.GeoMySQLInterface
 import info.whereismyfood.modules.menu.{Dish, DishToAdd}
 import info.whereismyfood.modules.order.ProcessedOrder.OrderStatuses
+import info.whereismyfood.modules.user.ClientUserActor.OrderEnroute
 import info.whereismyfood.modules.user._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,11 +21,13 @@ import scala.util.Try
   */
 
 object OrderModule {
+  case class DoesOrderExist(order: Order)
   case class AddOrders(orders: Orders)
   case class DeleteOrders(businessId: Long, orderId: String)
-  case class MarkOrdersReady(businessId: Long, orderId: String, mark: Boolean)
+  case class MarkOrdersReady(businessId: Long, orderId: String)
+  case class GetAllOrders(businessId: Long)
   case class GetOpenOrders(businessId: Long)
-  case class GetEnrouteOrders(businessId: Long)
+  case class GetReadyOrders(businessId: Long)
   case class GetOpenOrderForUser(creds: Creds)
   case class PutOrderItemForUser(creds: Creds, item: DishToAdd)
   case class DeleteOrderItemForUser(creds: Creds, itemId: String)
@@ -44,12 +47,13 @@ class OrderActor extends Actor with ActorLogging {
 
 
   override def receive: Receive = {
+    case GetAllOrders(businessId) =>
+      log.info("Getting all orders...")
+      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isOngoing)
     case GetOpenOrders(businessId) =>
-      log.info("Getting open orders...")
-      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.notYetShipped)
-    case GetEnrouteOrders(businessId) =>
-      log.info("Getting enroute orders...")
-      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isEnroute)
+      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isOpen)
+    case GetReadyOrders(businessId) =>
+      sender ! ProcessedOrder.retrieveAllActive(businessId).filter(OrderStatuses.isReady)
     case AddOrders(orders) =>
       sender ! addOrders(orders)
     case x: DeleteOrders =>
@@ -62,7 +66,13 @@ class OrderActor extends Actor with ActorLogging {
       sender ! putOpenOrderForUser(x)
     case x: DeleteOrderItemForUser =>
       sender ! deleteOpenOrderForUser(x)
+    case DoesOrderExist(x) =>
+      sender ! doesOrderExist(x)
+  }
 
+  def doesOrderExist(x: Order): Boolean = {
+    val a = ProcessedOrder.retrieveSingle(x.businessId, x.id).isDefined
+    a
   }
 
   def getOpenOrderForUser(x: GetOpenOrderForUser): Option[OpenOrder] = {
@@ -87,16 +97,21 @@ class OrderActor extends Actor with ActorLogging {
     OpenOrder.removeItem(x.creds.phone, x.itemId)
   }
 
-  def markOrder(x: MarkOrdersReady): Boolean = {
+  def markOrder(x: MarkOrdersReady): Option[OrderReady] = {
     // This is the only case that requires notifying route planner
-    if(ProcessedOrder.mark(x.businessId, x.orderId, x.mark))
-        notifyRoutePlanner(x.businessId)
-    else false
+    ProcessedOrder.mark(x.businessId, x.orderId) match {
+      case Some(order) =>
+        if (order.deliveryMode.isDelivery)
+          notifyRoutePlanner(x.businessId)
+        notifyClient(order)
+    }
+
+    ProcessedOrder.getOrderState(x.businessId, x.orderId)
   }
 
   def deleteOrder(req: DeleteOrders): Boolean = {
     ProcessedOrder.delete(req.businessId, req.orderId)
-    mediator ! Publish(Topics.chefUpdates + req.businessId, DeleteProcessedOrder(req.orderId))
+    mediator ! Publish(Topics.chefUpdates(req.businessId), DeleteProcessedOrder(req.orderId))
     true
   }
 
@@ -113,7 +128,7 @@ class OrderActor extends Actor with ActorLogging {
       val processedOrders = orders.orders map formatOrder
       saveLocation(processedOrders)
       saveProcessedOrders(processedOrders)
-      mediator ! Publish(Topics.chefUpdates + orders.businessId, op(processedOrders))
+      mediator ! Publish(Topics.chefUpdates(orders.businessId), op(processedOrders))
       processedOrders
     } catch {
       case e: Exception =>
@@ -155,6 +170,10 @@ class OrderActor extends Actor with ActorLogging {
           aref ! OnOrderMarkChange
       }
     }.isSuccess
+  }
+
+  def notifyClient(order: ProcessedOrder): Unit = {
+    mediator ! Publish(Topics.clientUpdates(order.client.phone), OrderEnroute(order))
   }
 }
 

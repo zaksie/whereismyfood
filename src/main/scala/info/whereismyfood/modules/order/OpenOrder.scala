@@ -13,6 +13,7 @@ import redis.ByteStringFormatter
 import spray.json.DefaultJsonProtocol
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -22,14 +23,16 @@ import scala.util.Try
   */
 
 object OpenOrder{
-  def of(businessId: Long, phone: String, item: OrderItem): Option[OpenOrder] = {
+  def of(businessId: Long, phone: String): Option[OpenOrder] = {
     ClientUser.find(phone) match {
       case Some(user) =>
-        Some(OpenOrder(businessId,
-          System.currentTimeMillis / 1000,
-          user.toCreds(),
-          DeliveryModes.sitin, //this is determined only when order is placed and therefore is useless here
-          Seq(item)))
+        Some {
+          OpenOrder(businessId,
+            System.currentTimeMillis / 1000,
+            user.toCreds(),
+            DeliveryModes.none
+          )
+        }
       case _ => None
     }
   }
@@ -59,18 +62,22 @@ object OpenOrder{
   def save(order: OpenOrder): Boolean = {
     Try {
       Databases.inmemory.save[OpenOrder](MyConfig.getInt("params.days-to-save-order") days, (order.key, order))
+      //TODO: throw away if not used. Tho could be used for analyzing incomplete orders
+      /*
       Future(order.saveToDatastore() match {
           case None => throw new Exception("couldn't save open order")
           case _ => None
         })
+       */
       }.isSuccess
   }
 
   def delete(order: OpenOrder): Boolean = {
     Try {
-      Databases.inmemory.delete(order.key)
       //The order itself is not deleted. it expires.
-      Future(if(order.removeFromDatastore()) throw new Exception("couldn't remove item from open order"))
+      Databases.inmemory.delete(order.key)
+      //TODO: throw away if not used. Tho could be used for analyzing incomplete orders
+      //Future(if(order.removeFromDatastore()) throw new Exception("couldn't remove item from open order"))
     }.isSuccess
   }
 
@@ -81,8 +88,9 @@ object OpenOrder{
 
   def addItem(phone: String, item: OrderItem): Boolean = {
     def findUserAndSaveOrder =
-      OpenOrder.of(item.businessId, phone, item) match {
+      OpenOrder.of(item.businessId, phone) match {
         case Some(order) =>
+          order.add(item)
           save(order)
         case _ =>
           false
@@ -90,7 +98,7 @@ object OpenOrder{
 
     retrieveBy(phone) match {
       case Some(order) if order.businessId == item.businessId =>
-        save(order.copy(contents = order.contents :+ item))
+        save(order.copy(contents = order.contents :+ item.copy(orderId = order.key)))
       case None =>
         findUserAndSaveOrder
       case _ =>
@@ -118,31 +126,19 @@ object OpenOrder{
   }
 }
 
-case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, deliveryMode: String = DeliveryModes.sitin, contents: Seq[OrderItem])
-    extends DatastoreStorable with KVStorable{
+case class OpenOrder(businessId: Long, timestamp: Long, client: Creds, deliveryMode: String = DeliveryModes.none,
+                     var contents: Seq[OrderItem] = Seq())
+    extends KVStorable{
   import OpenOrder._
   override def key: String = getKey(client.phone)
-  override def asDatastoreEntity: Option[FullEntity[_]] = {
-    val clientParent = PathElement.of(ClientUser.kind, client.phone)
-    val _key = datastore.newKeyFactory().addAncestor(clientParent).setKind(kind).newKey(this.key)
-    val entity = Entity.newBuilder(_key)
-    entity.set(_businessId, businessId)
-    entity.set(_timestamp, timestamp)
-    entity.set(_clientPhone, client.phone)
-    entity.set(_deliveryMode, deliveryMode)
-    entity.set(_items, contents.map(x => new EntityValue(x.asDatastoreEntity.get)).asJava)
 
-    Option(entity.build())
-  }
-
-  def toOrder: Order = {
-    Order(key, businessId, client, deliveryMode, contents.map(x=> DishToAdd(x.businessId, x.dish.id, x.notes)))
+  def add(item: OrderItem): Unit = {
+    contents = contents :+ item.copy(orderId = key)
   }
 }
 
 object OpenOrderJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   import info.whereismyfood.modules.user.CredsJsonSupport._
   import OrderItemJsonSupport._
-  implicit val formatter = jsonFormat(OpenOrder.apply, "businessId", "timestamp",
-    "client", "deliveryMode", "contents")
+  implicit val formatter = jsonFormat5(OpenOrder.apply)
 }

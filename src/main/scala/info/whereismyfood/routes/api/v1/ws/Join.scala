@@ -31,7 +31,8 @@ object Join {
               userActor ! Connected(outActor)
               NotUsed
           }.map {
-        outMsg: OutgoingMessage => TextMessage(outMsg.text)
+        outMsg: OutgoingMessage =>
+          TextMessage(outMsg.text)
       }
 
     Flow.fromSinkAndSource(incoming, outgoing)

@@ -13,7 +13,7 @@ import info.whereismyfood.modules.user._
   * Created by zakgoichman on 10/21/16.
   */
 class ModuleActors extends Actor {
-  val size = 2
+  val size = 3
   val big = 5
   context.actorOf(OptRouteModule.props.withRouter(RoundRobinPool(size)), name = "optroute")
   context.actorOf(VerifyPhoneModule.props.withRouter(RoundRobinPool(size)), "request-verify-phone")

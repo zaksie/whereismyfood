@@ -54,7 +54,12 @@ final case class Creds(phone: String, uuid: Option[String] = None, var otp: Opti
   def geoaddress: Option[Address] = {
     __address match {
       case addr @ Some(_) => addr
-      case _ => setAddress(Address.of(address)).geoaddress
+      case _ => Address.of(address) match {
+        case addr @ Some(_) =>
+          setAddress(addr)
+          addr
+        case _ => None
+      }
     }
   }
 

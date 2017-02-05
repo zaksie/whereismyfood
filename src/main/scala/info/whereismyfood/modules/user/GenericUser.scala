@@ -275,10 +275,7 @@ abstract class GenericUser(val creds: Creds)
   protected var __geolocation: Option[Geolocation] = None
   def geolocation: Option[Geolocation] = __geolocation
 
-  protected lazy val addressOptionProcessed = {
-    if(creds.geoaddress.isDefined) creds.geoaddress
-    else Address.of(creds.address)
-  }
+  protected lazy val addressOptionProcessed = creds.geoaddress
   def jwt = Login.createTokenFromUser(this)
 
   def compobj: GenericUserTrait[_]
@@ -313,7 +310,12 @@ abstract class GenericUser(val creds: Creds)
   }
 
   def save: this.type ={
-    saveToDatastore()
+    try {
+      saveToDatastore()
+    }catch{
+      case e: Throwable =>
+        log.error("Failed to save to datastore", e)
+    }
     this
   }
 

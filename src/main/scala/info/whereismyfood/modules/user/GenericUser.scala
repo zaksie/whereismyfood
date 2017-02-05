@@ -216,7 +216,6 @@ trait GenericUserTrait[T <: GenericUser]{
         case _ =>
           creds.setRef()
       }
-      log.info(s"Got business list for $jobInBusiness: ${creds.businessIds.mkString(",")}")
       val obj: T = of(creds)
       obj.extendFromDatastore(entity)
     }.toOption

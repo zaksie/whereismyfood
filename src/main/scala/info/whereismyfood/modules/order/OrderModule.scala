@@ -104,6 +104,7 @@ class OrderActor extends Actor with ActorLogging {
         if (order.deliveryMode.isDelivery)
           notifyRoutePlanner(x.businessId)
         notifyClient(order)
+      case _ => None
     }
 
     ProcessedOrder.getOrderState(x.businessId, x.orderId)
